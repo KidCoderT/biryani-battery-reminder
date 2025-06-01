@@ -1,5 +1,6 @@
 import time
 import asyncio
+import configparser
 from pathlib import Path
 from typing import Literal
 import batteryinfo
@@ -8,6 +9,16 @@ from importlib.resources import as_file, files
 
 APP_NAME = "battery-reminder"
 # battery_state = Literal["Charging", "Discharging"]
+
+config = configparser.ConfigParser()
+config.read("./settings.ini")
+
+MAX = int(config["DEFAULT"]["REMIND_TO_REMOVE"])
+MIN = int(config["DEFAULT"]["REMIND_TO_CHARGE"])
+REMIND_ON_PLUG = config["DEFAULT"]["NOTIFY_WHEN_PLUGGED"] == "yes"
+REMIND_ON_REMOVE = config["DEFAULT"]["NOTIFY_WHEN_REMOVED"] == "yes"
+
+print(MAX, MIN, REMIND_ON_PLUG, REMIND_ON_REMOVE)
 
 
 class App:
@@ -97,15 +108,17 @@ class App:
         if self.battery.state != self.current_state:
             new_state = self.battery.state
             if new_state == "Charging":
-                await self.send_charging_message()
+                if REMIND_ON_PLUG:
+                    await self.send_charging_message()
             else:
-                await self.send_discharging_message()
+                if REMIND_ON_REMOVE:
+                    await self.send_discharging_message()
 
             self.current_state = new_state
 
         if self.current_state == "Charging":
             charge_amount = self.battery.percent.value
-            if charge_amount >= 95:
+            if charge_amount >= MAX:
                 await self.send_removal_warning()
             elif charge_amount >= 99 and self.reminder_time_passed(
                 ">99", 2 * 60
@@ -114,7 +127,7 @@ class App:
 
         if self.current_state == "Discharging":
             charge_amount = self.battery.percent.value
-            if charge_amount <= 10 and self.reminder_time_passed("<10", 2 * 60):
+            if charge_amount <= MIN and self.reminder_time_passed("min", 2 * 60):
                 await self.send_charge_reminder()
 
 

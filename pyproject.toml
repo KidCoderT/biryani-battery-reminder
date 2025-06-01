@@ -1,0 +1,27 @@
+[project]
+name = "battery-reminder"
+version = "0.1.0"
+description = "Battery Reminder. Reminds when the battery charge is 100% or too low with a fun notification and ui."
+authors = [
+    {name = "Tejas",email = "tejas.sunil.75o25@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "desktop-notifier (>=6.1.1,<7.0.0)",
+    "batteryinfo (>=0.1.5,<0.2.0)",
+    "configparser (>=7.2.0,<8.0.0)"
+]
+
+[tool.poetry]
+packages = [{include = "battery_reminder"}]
+include = ["emojis/**.png"]
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.11.12"
+pyright = "^1.1.401"
+pyrefly = "^0.17.1"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
