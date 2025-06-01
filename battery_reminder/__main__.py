@@ -1,6 +1,7 @@
 import time
 import sys
 import threading
+import asyncio
 from pathlib import Path
 from tkinter import Tk, Toplevel
 from pystray import Icon, Menu, MenuItem
@@ -12,8 +13,7 @@ import os
 # from .config import load_config, save_config, get_app_name
 # from .startup_manager import add_to_startup, remove_from_startup
 
-from .src.assets_manager import *
-from .src import config
+from .src.background_proc import main
 
 # class App:
 #     def __init__(self):

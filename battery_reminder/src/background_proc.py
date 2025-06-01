@@ -1,29 +1,19 @@
 import time
 import asyncio
-import configparser
 from pathlib import Path
 from typing import Literal
 import batteryinfo
-from desktop_notifier import DesktopNotifier, Icon
-from importlib.resources import as_file, files
+from desktop_notifier import DesktopNotifier, Icon, Urgency
+from .config import DEFAULT_CONFIG_DATA, AppConfig
+from .assets_manager import get_emoji
+
 
 APP_NAME = "battery-reminder"
-# battery_state = Literal["Charging", "Discharging"]
-
-config = configparser.ConfigParser()
-config.read("./settings.ini")
-
-MAX = int(config["DEFAULT"]["REMIND_TO_REMOVE"])
-MIN = int(config["DEFAULT"]["REMIND_TO_CHARGE"])
-REMIND_ON_PLUG = config["DEFAULT"]["NOTIFY_WHEN_PLUGGED"] == "yes"
-REMIND_ON_REMOVE = config["DEFAULT"]["NOTIFY_WHEN_REMOVED"] == "yes"
-
-print(MAX, MIN, REMIND_ON_PLUG, REMIND_ON_REMOVE)
 
 
 class App:
     def __init__(self, app_name=APP_NAME) -> None:
-        self.battery = batteryinfo.Battery()
+        self.battery = batteryinfo.Battery(time_format=batteryinfo.TimeFormat.Human)
         self.notifier = DesktopNotifier(app_name=app_name, notification_limit=5)
         self.current_state = self.battery.state
         self.timers = {}
@@ -53,42 +43,43 @@ class App:
         await self.notifier.send(
             title="Process Started!",
             message="Hello I have started the battery monitoring process! " + message,
-            icon=Icon(Path("./emojis/plain.png").absolute()),
+            icon=Icon(get_emoji("plain")),
         )
 
     async def send_charging_message(self):
         await self.notifier.send(
             title="Started Charging!",
             message=f"It will take another {self.time_to_full or ''} to fully charge! Currently its {self.percentage:.1f}% full",
-            icon=Icon(Path("./emojis/happy.png").absolute()),
+            icon=Icon(get_emoji("happy")),
         )
 
     async def send_discharging_message(self):
         await self.notifier.send(
             title="Stopped Charging!",
             message=f"You have {self.time_to_empty or ''} of Charge Left! Currently there is {self.percentage:.1f}% charge left",
-            icon=Icon(Path("./emojis/happy.png").absolute()),
+            icon=Icon(get_emoji("happy")),
         )
 
     async def send_removal_warning(self):
         await self.notifier.send(
             title=f"Its {self.percentage:.1f}% Full",
             message=f"You should remove the charger now! There is {self.time_to_full or ''} of time left until full charge! Better to not spoil your battery!",
-            icon=Icon(Path("./emojis/perfect.png").absolute()),
+            icon=Icon(get_emoji("perfect")),
         )
 
     async def send_overflow_warning(self):
         await self.notifier.send(
             title="Please Stop Charging!",
             message=f"Its 100% charge pretty much. To not ruin your computer battery turn of the charger!",
-            icon=Icon(Path("./emojis/too-much.png").absolute()),
+            icon=Icon(get_emoji("too-much")),
+            urgency=Urgency.Critical,
         )
 
     async def send_charge_reminder(self):
         await self.notifier.send(
             title="Battery too low!",
             message=f"You have only {self.percentage:.1f}% battery left which will last for {self.time_to_empty}. Charge quickly!",
-            icon=Icon(Path("./emojis/oh-no.png").absolute()),
+            icon=Icon(get_emoji("oh-no")),
         )
 
     def reminder_time_passed(
@@ -98,47 +89,56 @@ class App:
     ) -> bool:
         if event_name not in self.timers:
             self.timers[event_name] = time.time()
-            return False
+            return True
 
         out = time.time() - self.timers[event_name] >= elapsed_time_in_seconds
-        self.timers[event_name] = time.time()
+        if out:
+            self.timers[event_name] = time.time()
         return out
 
-    async def update(self):
+    async def update(self, config: AppConfig):
         if self.battery.state != self.current_state:
             new_state = self.battery.state
             if new_state == "Charging":
-                if REMIND_ON_PLUG:
+                if config["PROC_SETTINGS"]["alert_when_charger_plugged"]:
                     await self.send_charging_message()
             else:
-                if REMIND_ON_REMOVE:
+                if config["PROC_SETTINGS"]["alert_when_charger_removed"]:
                     await self.send_discharging_message()
 
             self.current_state = new_state
 
         if self.current_state == "Charging":
             charge_amount = self.battery.percent.value
-            if charge_amount >= MAX:
-                await self.send_removal_warning()
-            elif charge_amount >= 99 and self.reminder_time_passed(
-                ">99", 2 * 60
+            pause_time = config["PROC_SETTINGS"]["remind_high_charge_time"] * 60
+
+            if charge_amount >= 99 and self.reminder_time_passed(
+                "overflow", 2 * 60
             ):  # 2 min
                 await self.send_overflow_warning()
+            elif charge_amount >= config["PROC_SETTINGS"][
+                "high_charge_percent"
+            ] and self.reminder_time_passed("high", pause_time):
+                await self.send_removal_warning()
 
         if self.current_state == "Discharging":
             charge_amount = self.battery.percent.value
-            if charge_amount <= MIN and self.reminder_time_passed("min", 2 * 60):
+            pause_time = config["PROC_SETTINGS"]["remind_low_charge_time"] * 60
+
+            if charge_amount <= config["PROC_SETTINGS"][
+                "low_charge_percent"
+            ] and self.reminder_time_passed("min", pause_time):
                 await self.send_charge_reminder()
 
 
 async def main():
     app = App()
-
     await app.send_welcome_message()
 
     while True:
-        await app.update()
-        await asyncio.sleep(1)
+        await app.update(DEFAULT_CONFIG_DATA)
+        await asyncio.sleep(0.1)
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
