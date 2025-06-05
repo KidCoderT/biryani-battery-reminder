@@ -13,7 +13,9 @@ import os
 # from .config import load_config, save_config, get_app_name
 # from .startup_manager import add_to_startup, remove_from_startup
 
-from .src.background_proc import main
+from .src.gui import main
+
+main()
 
 # class App:
 #     def __init__(self):
