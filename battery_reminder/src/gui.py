@@ -235,7 +235,15 @@ class AppSettingUI:
 
         # Battery Percentage Settings
         def create_percentage_setting(
-            parent, label_text, row, min_val=None, max_val=None, default=10, icon=None, icon_padding=5
+            parent,
+            label_text,
+            row,
+            min_val=None,
+            max_val=None,
+            default=10,
+            icon=None,
+            icon_padding=5,
+            icon_paddingr=2,
         ):
             # Label
             label = ttk.Label(parent, text=f"{label_text} (%):")
@@ -250,7 +258,7 @@ class AppSettingUI:
             icon_label = None
             if icon:
                 icon_label = ttk.Label(input_frame, text=icon, font=("Arial", 12))
-                icon_label.pack(side=RIGHT, padx=(icon_padding, 2))
+                icon_label.pack(side=RIGHT, padx=(icon_padding, icon_paddingr))
 
             # Spinbox
             var = tk.IntVar(value=default)
@@ -393,32 +401,13 @@ class AppSettingUI:
             max_val=20,
             default=10,
             icon="🔋",
-            icon_padding=21
+            icon_padding=21 - 6 + 3,
+            icon_paddingr=2 + 6,
         )
         tooltip_text = "When battery falls below this percentage, the app will remind you to plug in your device"
         ToolTip(low_spinbox, tooltip_text, bootstyle="info")
         ToolTip(low_label, tooltip_text, bootstyle="info")
         ToolTip(low_icon_label, tooltip_text, bootstyle="info")
-
-        # Low battery interval (1:30 to 5:30)
-        (
-            self.low_interval_vars,
-            low_interval_frame,
-            low_interval_warning,
-            low_interval_label,
-            low_interval_icon_label,
-        ) = create_time_interval_setting(
-            app_settings_labelframe,
-            "Low Battery",
-            1,
-            min_seconds=90,
-            max_seconds=330,
-            default_seconds=180,
-            icon=None,
-        )
-        low_interval_tooltip = "How often to remind you to plug in when battery is low. Set between 1:30 and 5:30 minutes"
-        ToolTip(low_interval_frame, low_interval_tooltip, bootstyle="info")
-        ToolTip(low_interval_label, low_interval_tooltip, bootstyle="info")
 
         (
             self.high_battery_var,
@@ -430,17 +419,59 @@ class AppSettingUI:
         ) = create_percentage_setting(
             app_settings_labelframe,
             "High Battery Alert",
-            3,
+            1,
             min_val=75,
             max_val=94,
             default=85,
             icon="⚡",
-            icon_padding=7
+            icon_padding=7 + 3,
         )
         tooltip_text = "When battery reaches this percentage, the app will remind you to remove the charger"
         ToolTip(high_spinbox, tooltip_text, bootstyle="warning")
         ToolTip(high_label, tooltip_text, bootstyle="warning")
         ToolTip(high_icon_label, tooltip_text, bootstyle="warning")
+
+        (
+            self.overflow_var,
+            overflow_spinbox,
+            overflow_warning,
+            overflow_label,
+            overflow_input_frame,
+            overflow_icon_label,
+        ) = create_percentage_setting(
+            app_settings_labelframe,
+            "Overflow Alert",
+            2,
+            min_val=95,
+            max_val=99,
+            default=95,
+            icon="⚠",
+            icon_padding=8,
+        )
+        tooltip_text = "When battery reaches this percentage, the app will give urgent warnings to remove the charger"
+        ToolTip(overflow_spinbox, tooltip_text, bootstyle="danger")
+        ToolTip(overflow_label, tooltip_text, bootstyle="danger")
+        ToolTip(overflow_icon_label, tooltip_text, bootstyle="danger")
+
+        # Low battery interval (1:30 to 5:30)
+        (
+            self.low_interval_vars,
+            low_interval_frame,
+            low_interval_warning,
+            low_interval_label,
+            low_interval_icon_label,
+        ) = create_time_interval_setting(
+            app_settings_labelframe,
+            "Low Battery",
+            3,
+            min_seconds=90,
+            max_seconds=330,
+            default_seconds=180,
+            icon=None,
+        )
+        low_interval_tooltip = "How often to remind you to plug in when battery is low. Set between 1:30 and 5:30 minutes"
+        ToolTip(low_interval_frame, low_interval_tooltip, bootstyle="info")
+        ToolTip(low_interval_label, low_interval_tooltip, bootstyle="info")
 
         (
             self.high_interval_vars,
@@ -460,28 +491,6 @@ class AppSettingUI:
         high_interval_tooltip = "How often to remind you to unplug when battery is high. Set between 3:00 and 10:00 minutes"
         ToolTip(high_interval_frame, high_interval_tooltip, bootstyle="warning")
         ToolTip(high_interval_label, high_interval_tooltip, bootstyle="warning")
-
-        (
-            self.overflow_var,
-            overflow_spinbox,
-            overflow_warning,
-            overflow_label,
-            overflow_input_frame,
-            overflow_icon_label,
-        ) = create_percentage_setting(
-            app_settings_labelframe,
-            "Overflow Alert",
-            6,
-            min_val=95,
-            max_val=99,
-            default=95,
-            icon="⚠",
-        )
-        tooltip_text = "When battery reaches this percentage, the app will give urgent warnings to remove the charger"
-        ToolTip(overflow_spinbox, tooltip_text, bootstyle="danger")
-        ToolTip(overflow_label, tooltip_text, bootstyle="danger")
-        ToolTip(overflow_icon_label, tooltip_text, bootstyle="danger")
-
         (
             self.overflow_interval_vars,
             overflow_interval_frame,
@@ -491,7 +500,7 @@ class AppSettingUI:
         ) = create_time_interval_setting(
             app_settings_labelframe,
             "Overflow",
-            7,
+            5,
             min_seconds=30,
             max_seconds=120,
             default_seconds=60,
