@@ -47,19 +47,6 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
             "energy_full": self.battery.energy_full,
             "energy_full_design": self.battery.energy_full_design,
         }
-        """
-                    (left_details, "Vendor:", "N/A"),
-            (left_details, "Model:", "N/A"),
-            (left_details, "Serial Number:", "N/A"),
-            (right_details, "Technology:", "N/A"),
-            (right_details, "Voltage:", "N/A"),
-            (right_details, "Energy Rate:", "N/A"),
-
-        ttk.Label(label_container_frame, text="Energy Full:").pack(side=LEFT, padx=5)
-        self.energy_full_value_label = ttk.Label(label_container_frame, text="N/A")
-        self.energy_full_value_label.pack(side=LEFT, padx=5)
-        ttk.Label(label_container_frame, text="Energy Original Full:").pack(
-        """
 
     def get_battery_state(self, config: AppConfig):
         charge_amount = self.battery.percent.value
@@ -228,7 +215,7 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
 
         elif self.current_charger_state == "Charging":
             charge_amount = self.battery.percent.value
-            pause_time = config["PROC_SETTINGS"]["remind_high_charge_time"] * 60
+            pause_time = config["PROC_SETTINGS"]["remind_high_charge_time"]
 
             if charge_amount >= 99 and self.reminder_time_passed(
                 "overflow", 2 * 60
@@ -241,7 +228,7 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
 
         elif self.current_charger_state == "Discharging":
             charge_amount = self.battery.percent.value
-            pause_time = config["PROC_SETTINGS"]["remind_low_charge_time"] * 60
+            pause_time = config["PROC_SETTINGS"]["remind_low_charge_time"]
 
             if charge_amount <= config["PROC_SETTINGS"][
                 "low_charge_percent"

@@ -39,14 +39,17 @@ class ProcSettings(TypedDict):
     alert_when_charger_removed: bool
     low_charge_percent: int
     high_charge_percent: int
-    remind_low_charge_time: int
-    remind_high_charge_time: int
+    overflow_percent: int
+
+    remind_low_charge_time: int  # IN SECONDS
+    remind_high_charge_time: int  # IN SECONDS
+    remind_overflow_charge_time: int  # IN SECONDS
 
 
 class GUISettings(TypedDict):
     """Type definition for the GUI_SETTINGS section."""
 
-    theme: Literal["dark", "light", "system"]  # "dark" | "light" | "system"
+    theme: Literal["dark", "light"]  # "dark" | "light" | "system"
 
 
 class AppConfig(TypedDict):
@@ -62,11 +65,13 @@ DEFAULT_CONFIG_DATA: AppConfig = {
         "alert_when_charger_plugged": True,
         "alert_when_charger_removed": True,
         "low_charge_percent": 10,
-        "high_charge_percent": 50,
+        "high_charge_percent": 90,
+        "overflow_percent": 98,
         "remind_low_charge_time": 3,  # 5,  # minutes
         "remind_high_charge_time": 3,  # 5,  # minutes
+        "remind_overflow_charge_time": 5,
     },
-    "GUI_SETTINGS": {"theme": "system"},
+    "GUI_SETTINGS": {"theme": "light"},
 }
 
 # -------------------------------------------------

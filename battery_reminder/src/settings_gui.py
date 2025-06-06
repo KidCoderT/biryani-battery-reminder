@@ -8,8 +8,11 @@ from ttkbootstrap import style
 from ttkbootstrap.constants import *
 from ttkbootstrap.tooltip import ToolTip
 from ttkbootstrap.icons import Emoji
+from ttkbootstrap.scrolled import ScrolledFrame
+from ttkbootstrap.dialogs import Messagebox
 
 from battery_reminder.src.background_proc import BackgroundProcessManager
+from battery_reminder.src.config import AppConfig, save_config, DEFAULT_CONFIG_DATA
 
 
 class AppSettingUI:
@@ -20,8 +23,8 @@ class AppSettingUI:
     DARK_THEME = "darkly"
 
     # UI Constants
-    WINDOW_SIZE = "820x900"
-    METER_SIZE = 180
+    WINDOW_SIZE = "820x990"
+    METER_SIZE = 200
     METER_ARC_RANGE = 360
 
     # Tooltip Descriptions
@@ -42,18 +45,25 @@ class AppSettingUI:
         "voltage": "Current battery voltage (V).",
     }
 
-    def __init__(self, main_window: ttk.Window) -> None:
+    def __init__(self, main_window: ttk.Window, data: AppConfig) -> None:
         """Initialize the application UI.
 
         Args:
             main_window: The main ttkbootstrap window instance
         """
         self.master = main_window
+        self.saved_data = data
         self._setup_window()
         self._initialize_theme()
         self._create_main_layout()
         self._create_header()
         self._create_notebook()
+
+        # Initialize button states
+        self.reset_button.configure(state="disabled")
+        self.save_button.configure(state="disabled")
+
+        self.toggle_theme()
 
     def _setup_window(self) -> None:
         """Configure the main window properties."""
@@ -62,8 +72,9 @@ class AppSettingUI:
 
     def _initialize_theme(self) -> None:
         """Initialize theme-related settings and styles."""
-        self.theme: Literal["light", "dark"] = "light"
-        self.master.style.theme_use(self.LIGHT_THEME)
+        self.theme: Literal["light", "dark"] = (
+            "light" if self.saved_data["GUI_SETTINGS"]["theme"] == "dark" else "dark"
+        )
 
         # Configure custom button styles
         self.style = ttk.Style()
@@ -81,6 +92,11 @@ class AppSettingUI:
             justify=CENTER,
             anchor=CENTER,
         )
+
+        # Configure error state styles with thicker borders
+        # self.style.configure(
+        #     "Error.TSpinbox", borderwidth=3, relief="solid", bordercolor="red"
+        # )
 
         self.icons = {
             "dark": " ☀",
@@ -165,24 +181,16 @@ class AppSettingUI:
         )
 
         # Update button styles
+        style = "CustomLight.TButton" if self.theme == "light" else "CustomDark.TButton"
         self.style.configure(
             "CustomLight.TButton", background="#ffffff", foreground="#222222"
         )
         self.style.configure(
             "CustomDark.TButton", background="#222222", foreground="#ffffff"
         )
-
-        style = "CustomDark.TButton" if self.theme == "light" else "CustomLight.TButton"
-        self.theme_button.config(text=self.icons[self.theme], style=style)
-
-        self.update_elements_on_theme_change()
-
-    def update_elements_on_theme_change(self) -> None:
-        """Update UI elements when theme changes."""
-        if self.theme == "light":
-            self.meter.configure(bootstyle=DEFAULT)
-        else:
-            self.meter.configure(bootstyle=INFO)
+        self.theme_button.configure(text=self.icons[self.theme], style=style)
+        # self.reload_btn.configure(style=style)
+        self.update_theme()
 
     def create_app_settings_widgets(self, frame: ttk.Frame) -> None:
         """Create app settings widgets.
@@ -190,16 +198,25 @@ class AppSettingUI:
         Args:
             frame: The parent frame for the app settings widgets
         """
-        self._create_form_widgets(frame)
+        scrolled_frame = ScrolledFrame(frame, autohide=True)
+        scrolled_frame.pack(expand=True, fill="both")
+        self._create_form_widgets(scrolled_frame)
 
     def _create_form_widgets(self, frame: ttk.Frame) -> None:
         """Create form widgets for the app settings."""
         form_frame = ttk.Frame(frame)
 
-        # form_frame.grid_columnconfigure(1, weight=1)  # Spacer column
-        # form_frame.grid_columnconfigure(0, weight=0)  # Label column
+        # Initialize error tracking attributes
+        self.error_count = 0
+        self.field_errors = {}
+
         form_frame.pack(fill="both", padx=30, pady=20, expand=YES)
 
+        # Add trace to all variables to detect changes
+        def on_variable_change(*args):
+            self._update_button_states()
+
+        # General Settings LabelFrame
         general_labelframe = ttk.LabelFrame(
             form_frame, text="General Settings", style="secondary", padding=(10, 10)
         )
@@ -214,12 +231,71 @@ class AppSettingUI:
         run_on_startup_label = ttk.Label(general_labelframe, text="Run on Startup:")
         run_on_startup_label.grid(row=0, column=0, sticky=W, padx=10, pady=(5, 15))
         self.run_on_startup_var = tk.BooleanVar(value=False)
+        self.run_on_startup_var.trace_add("write", on_variable_change)
         run_on_startup_check = ttk.Checkbutton(
             general_labelframe,
             variable=self.run_on_startup_var,
-            style="success-round-toggle",
+            style="primary-round-toggle",
         )
         run_on_startup_check.grid(row=0, column=1, sticky=E, padx=10, pady=(5, 15))
+        ToolTip(
+            run_on_startup_check,
+            "Start the app automatically when Windows starts",
+            bootstyle="info",
+        )
+        ToolTip(
+            run_on_startup_label,
+            "Start the app automatically when Windows starts",
+            bootstyle="info",
+        )
+
+        # Alert when charger plugged
+        charger_plugged_label = ttk.Label(
+            general_labelframe, text="Alert when Charger Plugged:"
+        )
+        charger_plugged_label.grid(row=1, column=0, sticky=W, padx=10, pady=(5, 15))
+        self.charger_plugged_var = tk.BooleanVar(value=True)
+        self.charger_plugged_var.trace_add("write", on_variable_change)
+        charger_plugged_check = ttk.Checkbutton(
+            general_labelframe,
+            variable=self.charger_plugged_var,
+            style="primary-round-toggle",
+        )
+        charger_plugged_check.grid(row=1, column=1, sticky=E, padx=10, pady=(5, 15))
+        ToolTip(
+            charger_plugged_check,
+            "Show notification when charger is connected",
+            bootstyle="info",
+        )
+        ToolTip(
+            charger_plugged_label,
+            "Show notification when charger is connected",
+            bootstyle="info",
+        )
+
+        # Alert when charger removed
+        charger_removed_label = ttk.Label(
+            general_labelframe, text="Alert when Charger Removed:"
+        )
+        charger_removed_label.grid(row=2, column=0, sticky=W, padx=10, pady=(5, 15))
+        self.charger_removed_var = tk.BooleanVar(value=True)
+        self.charger_removed_var.trace_add("write", on_variable_change)
+        charger_removed_check = ttk.Checkbutton(
+            general_labelframe,
+            variable=self.charger_removed_var,
+            style="primary-round-toggle",
+        )
+        charger_removed_check.grid(row=2, column=1, sticky=E, padx=10, pady=(5, 15))
+        ToolTip(
+            charger_removed_check,
+            "Show notification when charger is disconnected",
+            bootstyle="info",
+        )
+        ToolTip(
+            charger_removed_label,
+            "Show notification when charger is disconnected",
+            bootstyle="info",
+        )
 
         # App Settings LabelFrame
         app_settings_labelframe = ttk.LabelFrame(
@@ -271,6 +347,7 @@ class AppSettingUI:
                 wrap=False,
             )
             spinbox.pack(side=RIGHT)
+            self.field_errors[spinbox] = False  # Track initial error state
 
             # Warning label
             warning = ttk.Label(
@@ -288,14 +365,54 @@ class AppSettingUI:
             def validate(*args):
                 try:
                     value = var.get()
-                    if min_val and value < min_val:
+                    is_error = min_val and value < min_val
+                    was_error = self.field_errors[spinbox]
+
+                    if is_error and not was_error:
+                        self.error_count += 1
+                        self.field_errors[spinbox] = True
                         warning.grid()
-                    else:
+                        spinbox.configure(style="Error.TSpinbox")
+                    elif not is_error and was_error:
+                        self.error_count -= 1
+                        self.field_errors[spinbox] = False
                         warning.grid_remove()
+                        spinbox.configure(style="default.TSpinbox")
+
+                    # Update error message display
+                    if self.error_count > 0:
+                        self.error_label.config(
+                            text=f"Errors: {self.error_count} remaining"
+                        )
+                    else:
+                        self.error_label.config(text="")
+
+                    # Update button states
+                    self._update_button_states()
+
                 except tk.TclError:
-                    pass
+                    # Handle cases where input is not a valid integer temporarily
+                    is_error = True
+                    was_error = self.field_errors[spinbox]
+                    if is_error and not was_error:
+                        self.error_count += 1
+                        self.field_errors[spinbox] = True
+                        warning.grid()
+                        spinbox.configure(style="Error.TSpinbox")
+
+                    # Update error message display even for invalid input during typing
+                    if self.error_count > 0:
+                        self.error_label.config(
+                            text=f"Errors: {self.error_count} remaining"
+                        )
+                    else:
+                        self.error_label.config(text="")
+
+                    # Update button states
+                    self._update_button_states()
 
             var.trace_add("write", validate)
+            var.trace_add("write", on_variable_change)
             return var, spinbox, warning, label, input_frame, icon_label
 
         def create_time_interval_setting(
@@ -372,16 +489,70 @@ class AppSettingUI:
             def validate_time(*args):
                 try:
                     total_seconds = minutes_var.get() * 60 + seconds_var.get()
-                    if total_seconds < min_seconds or total_seconds > max_seconds:
+                    is_error = (
+                        total_seconds < min_seconds or total_seconds > max_seconds
+                    )
+                    was_error = self.field_errors.get(
+                        minutes_spinbox, False
+                    ) or self.field_errors.get(seconds_spinbox, False)
+
+                    if is_error and not was_error:
+                        self.error_count += 1
+                        self.field_errors[minutes_spinbox] = True
+                        self.field_errors[seconds_spinbox] = True
                         warning.grid()
-                    else:
+                        minutes_spinbox.configure(style="Error.TSpinbox")
+                        seconds_spinbox.configure(style="Error.TSpinbox")
+                    elif not is_error and was_error:
+                        self.error_count -= 1
+                        self.field_errors[minutes_spinbox] = False
+                        self.field_errors[seconds_spinbox] = False
                         warning.grid_remove()
+                        minutes_spinbox.configure(style="default.TSpinbox")
+                        seconds_spinbox.configure(style="default.TSpinbox")
+
+                    # Update error message display
+                    if self.error_count > 0:
+                        self.error_label.config(
+                            text=f"Errors: {self.error_count} remaining"
+                        )
+                    else:
+                        self.error_label.config(text="")
+
+                    # Update button states
+                    self._update_button_states()
+
                 except tk.TclError:
-                    pass
+                    # Handle cases where input is not a valid integer temporarily
+                    is_error = True
+                    was_error = self.field_errors.get(
+                        minutes_spinbox, False
+                    ) or self.field_errors.get(seconds_spinbox, False)
+                    if is_error and not was_error:
+                        self.error_count += 1
+                        self.field_errors[minutes_spinbox] = True
+                        self.field_errors[seconds_spinbox] = True
+                        warning.grid()
+                        minutes_spinbox.configure(style="Error.TSpinbox")
+                        seconds_spinbox.configure(style="Error.TSpinbox")
+
+                    # Update error message display even for invalid input during typing
+                    if self.error_count > 0:
+                        self.error_label.config(
+                            text=f"Errors: {self.error_count} remaining"
+                        )
+                    else:
+                        self.error_label.config(text="")
+
+                    # Update button states
+                    self._update_button_states()
 
             # Add validation to both spinboxes
             for var in [minutes_var, seconds_var]:
                 var.trace_add("write", validate_time)
+
+            self.field_errors[minutes_spinbox] = False  # Track initial error state
+            self.field_errors[seconds_spinbox] = False  # Track initial error state
 
             return (minutes_var, seconds_var), time_frame, warning, label, icon_label
 
@@ -399,10 +570,10 @@ class AppSettingUI:
             0,
             min_val=5,
             max_val=20,
-            default=10,
+            default=self.saved_data["PROC_SETTINGS"]["low_charge_percent"],
             icon="🔋",
-            icon_padding=21 - 6 + 3,
-            icon_paddingr=2 + 6,
+            icon_padding=21 - 6 + 3 + 1,
+            icon_paddingr=8,
         )
         tooltip_text = "When battery falls below this percentage, the app will remind you to plug in your device"
         ToolTip(low_spinbox, tooltip_text, bootstyle="info")
@@ -419,12 +590,13 @@ class AppSettingUI:
         ) = create_percentage_setting(
             app_settings_labelframe,
             "High Battery Alert",
-            1,
+            2,
             min_val=75,
             max_val=94,
-            default=85,
+            default=self.saved_data["PROC_SETTINGS"]["high_charge_percent"],
             icon="⚡",
-            icon_padding=7 + 3,
+            icon_padding=7 + 3 + 3,
+            icon_paddingr=0,
         )
         tooltip_text = "When battery reaches this percentage, the app will remind you to remove the charger"
         ToolTip(high_spinbox, tooltip_text, bootstyle="warning")
@@ -441,19 +613,20 @@ class AppSettingUI:
         ) = create_percentage_setting(
             app_settings_labelframe,
             "Overflow Alert",
-            2,
+            4,
             min_val=95,
             max_val=99,
-            default=95,
+            default=self.saved_data["PROC_SETTINGS"]["overflow_percent"],
             icon="⚠",
-            icon_padding=8,
+            icon_padding=8 + 3,
+            icon_paddingr=0,
         )
         tooltip_text = "When battery reaches this percentage, the app will give urgent warnings to remove the charger"
         ToolTip(overflow_spinbox, tooltip_text, bootstyle="danger")
         ToolTip(overflow_label, tooltip_text, bootstyle="danger")
         ToolTip(overflow_icon_label, tooltip_text, bootstyle="danger")
 
-        # Low battery interval (1:30 to 5:30)
+        # Low battery interval (0:30 to 5:30)
         (
             self.low_interval_vars,
             low_interval_frame,
@@ -463,10 +636,10 @@ class AppSettingUI:
         ) = create_time_interval_setting(
             app_settings_labelframe,
             "Low Battery",
-            3,
-            min_seconds=90,
+            6,
+            min_seconds=30,
             max_seconds=330,
-            default_seconds=180,
+            default_seconds=self.saved_data["PROC_SETTINGS"]["remind_low_charge_time"],
             icon=None,
         )
         low_interval_tooltip = "How often to remind you to plug in when battery is low. Set between 1:30 and 5:30 minutes"
@@ -482,10 +655,10 @@ class AppSettingUI:
         ) = create_time_interval_setting(
             app_settings_labelframe,
             "High Battery",
-            4,
-            min_seconds=180,
+            8,
+            min_seconds=30,
             max_seconds=600,
-            default_seconds=300,
+            default_seconds=self.saved_data["PROC_SETTINGS"]["remind_high_charge_time"],
             icon=None,
         )
         high_interval_tooltip = "How often to remind you to unplug when battery is high. Set between 3:00 and 10:00 minutes"
@@ -500,15 +673,206 @@ class AppSettingUI:
         ) = create_time_interval_setting(
             app_settings_labelframe,
             "Overflow",
-            5,
+            10,
             min_seconds=30,
-            max_seconds=120,
-            default_seconds=60,
+            max_seconds=180,
+            default_seconds=self.saved_data["PROC_SETTINGS"][
+                "remind_overflow_charge_time"
+            ],
             icon=None,
         )
         overflow_interval_tooltip = "How often to give urgent warnings when battery is at overflow level. Set between 0:30 and 2:00 minutes"
         ToolTip(overflow_interval_frame, overflow_interval_tooltip, bootstyle="danger")
         ToolTip(overflow_interval_label, overflow_interval_tooltip, bootstyle="danger")
+
+        # Button and Error Message Frame
+        button_error_frame = ttk.Frame(form_frame, padding=(0, 20))
+        button_error_frame.pack(fill="x", expand=YES, anchor=S)
+
+        # Error Message Label
+        self.error_label = ttk.Label(button_error_frame, text="", foreground="red")
+        self.error_label.pack(side=LEFT, padx=(10, 0))
+
+        # Buttons Frame (to right-align buttons)
+        buttons_frame = ttk.Frame(button_error_frame)
+        buttons_frame.pack(side=RIGHT, padx=(10, 0))
+
+        # Reset Default
+        self.reset_default_button = ttk.Button(
+            buttons_frame,
+            text="Reset Default",
+            command=self.reset_default,
+            style="secondary.TButton",
+            state="disabled",
+        )
+        self.reset_default_button.pack(side=LEFT, padx=(0, 10))
+        ToolTip(
+            self.reset_default_button,
+            "Reset all settings to their default values",
+            bootstyle="info",
+        )
+
+        # Reset Button
+        self.reset_button = ttk.Button(
+            buttons_frame,
+            text="Reset",
+            command=self.reset_settings,
+            style="danger.TButton",
+            state="disabled",
+        )
+        self.reset_button.pack(side=LEFT, padx=(0, 10))
+        ToolTip(
+            self.reset_button,
+            "Reset all settings to their last saved values",
+            bootstyle="info",
+        )
+
+        # Save Button
+        self.save_button = ttk.Button(
+            buttons_frame,
+            text="Save",
+            command=self.save_settings,
+            style="success.TButton",
+            state="disabled",
+        )
+        self.save_button.pack(side=LEFT)
+        ToolTip(self.save_button, "Save current settings", bootstyle="info")
+
+    def _update_button_states(self) -> None:
+        """Update the state of reset and save buttons based on changes and errors."""
+        current_data = self.get_current_settings()
+        has_changes = self.has_settings_changed(current_data)
+        has_errors = self.error_count > 0
+        differs_from_default = self.has_settings_changed(
+            self.saved_data, DEFAULT_CONFIG_DATA
+        )
+
+        # Reset button is enabled if there are changes
+        self.reset_button.configure(state="normal" if has_changes else "disabled")
+
+        # Reset Default button is enabled if current settings differ from default
+        self.reset_default_button.configure(
+            state="normal" if differs_from_default else "disabled"
+        )
+
+        # Save button is enabled if there are changes and no errors
+        self.save_button.configure(
+            state="normal" if has_changes and not has_errors else "disabled"
+        )
+
+    def get_current_settings(self) -> AppConfig:
+        """Get the current values from all input fields.
+
+        Returns:
+            AppConfig: Dictionary containing all current settings
+        """
+        # Get time values in seconds
+        low_min, low_sec = self.low_interval_vars
+        high_min, high_sec = self.high_interval_vars
+        overflow_min, overflow_sec = self.overflow_interval_vars
+
+        return {
+            "PROC_SETTINGS": {
+                "run_on_startup": self.run_on_startup_var.get(),
+                "alert_when_charger_plugged": self.charger_plugged_var.get(),
+                "alert_when_charger_removed": self.charger_removed_var.get(),
+                "low_charge_percent": self.low_battery_var.get(),
+                "high_charge_percent": self.high_battery_var.get(),
+                "overflow_percent": self.overflow_var.get(),
+                "remind_low_charge_time": low_min.get() * 60 + low_sec.get(),
+                "remind_high_charge_time": high_min.get() * 60 + high_sec.get(),
+                "remind_overflow_charge_time": overflow_min.get() * 60
+                + overflow_sec.get(),
+            },
+            "GUI_SETTINGS": {"theme": self.theme},
+        }
+
+    def has_settings_changed(
+        self, new_data: AppConfig, old_data: AppConfig | None = None
+    ) -> bool:
+        """Check if the new settings differ from the saved settings.
+
+        Args:
+            new_data: The new configuration data to compare against
+            old_data: The old configuration data to compare against. Defaults to self.saved_data
+
+        Returns:
+            bool: True if settings have changed, False otherwise
+        """
+        if old_data is None:
+            old_data = self.saved_data
+
+        # Compare PROC_SETTINGS
+        for key, value in new_data["PROC_SETTINGS"].items():
+            if old_data["PROC_SETTINGS"][key] != value:
+                return True
+
+        # Compare GUI_SETTINGS
+        for key, value in new_data["GUI_SETTINGS"].items():
+            if old_data["GUI_SETTINGS"][key] != value:
+                return True
+
+        return False
+
+    def reset_settings(self):
+        """Reset all settings to their saved values."""
+        # Reset PROC_SETTINGS
+        self.run_on_startup_var.set(self.saved_data["PROC_SETTINGS"]["run_on_startup"])
+        self.charger_plugged_var.set(
+            self.saved_data["PROC_SETTINGS"]["alert_when_charger_plugged"]
+        )
+        self.charger_removed_var.set(
+            self.saved_data["PROC_SETTINGS"]["alert_when_charger_removed"]
+        )
+        self.low_battery_var.set(self.saved_data["PROC_SETTINGS"]["low_charge_percent"])
+        self.high_battery_var.set(
+            self.saved_data["PROC_SETTINGS"]["high_charge_percent"]
+        )
+        self.overflow_var.set(self.saved_data["PROC_SETTINGS"]["overflow_percent"])
+
+        # Reset time intervals
+        low_min, low_sec = self.low_interval_vars
+        high_min, high_sec = self.high_interval_vars
+        overflow_min, overflow_sec = self.overflow_interval_vars
+
+        low_min.set(self.saved_data["PROC_SETTINGS"]["remind_low_charge_time"] // 60)
+        low_sec.set(self.saved_data["PROC_SETTINGS"]["remind_low_charge_time"] % 60)
+        high_min.set(self.saved_data["PROC_SETTINGS"]["remind_high_charge_time"] // 60)
+        high_sec.set(self.saved_data["PROC_SETTINGS"]["remind_high_charge_time"] % 60)
+        overflow_min.set(
+            self.saved_data["PROC_SETTINGS"]["remind_overflow_charge_time"] // 60
+        )
+        overflow_sec.set(
+            self.saved_data["PROC_SETTINGS"]["remind_overflow_charge_time"] % 60
+        )
+
+        # Update button states
+        self._update_button_states()
+
+    def update_theme(self):
+        data = self.saved_data.copy()
+        data["GUI_SETTINGS"]["theme"] = self.theme
+        save_config(data)
+
+    def save_settings(self):
+        """Save the current settings and update the saved data."""
+        current_data = self.get_current_settings()
+
+        # Save the data
+        save_config(current_data)
+
+        # Update the saved data reference
+        self.saved_data = current_data
+
+        # Show notification using Messagebox
+        Messagebox.ok(
+            title="Settings Saved",
+            message="Your settings have been successfully updated.",
+            parent=self.master,
+        )
+
+        # Update button states
+        self._update_button_states()
 
     def create_battery_health_widgets(self, frame: ttk.Frame) -> None:
         """Create battery health monitoring widgets.
@@ -611,14 +975,14 @@ class AppSettingUI:
         self.meter = ttk.Meter(
             self.bottom_frame,
             metersize=self.METER_SIZE,
-            padding=10,
+            padding=30,
             amountused=data["capacity"].value,
             amounttotal=100,
             metertype="full",
             arcrange=self.METER_ARC_RANGE,
             textright="%",
             subtext="Battery Health",
-            bootstyle=DEFAULT,
+            style=INFO,
         )
         self.meter.grid(row=0, column=0, pady=(20, 0), sticky="nsew")
         ToolTip(self.meter, text=self.TOOLTIP_DESCRIPTIONS["capacity"])
@@ -683,11 +1047,56 @@ class AppSettingUI:
         self.battery_detail_labels["voltage"].configure(text=data["voltage"])
         self.battery_detail_labels["temperature"].configure(text=data["temperature"])
 
+    def reset_default(self) -> None:
+        """Reset all settings to their default values."""
+        # Reset PROC_SETTINGS
+        self.run_on_startup_var.set(
+            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["run_on_startup"]
+        )
+        self.charger_plugged_var.set(
+            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["alert_when_charger_plugged"]
+        )
+        self.charger_removed_var.set(
+            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["alert_when_charger_removed"]
+        )
+        self.low_battery_var.set(
+            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["low_charge_percent"]
+        )
+        self.high_battery_var.set(
+            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["high_charge_percent"]
+        )
+        self.overflow_var.set(DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["overflow_percent"])
 
-def main():
+        # Reset time intervals
+        low_min, low_sec = self.low_interval_vars
+        high_min, high_sec = self.high_interval_vars
+        overflow_min, overflow_sec = self.overflow_interval_vars
+
+        low_min.set(
+            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_low_charge_time"] // 60
+        )
+        low_sec.set(DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_low_charge_time"] % 60)
+        high_min.set(
+            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_high_charge_time"] // 60
+        )
+        high_sec.set(
+            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_high_charge_time"] % 60
+        )
+        overflow_min.set(
+            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_overflow_charge_time"] // 60
+        )
+        overflow_sec.set(
+            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_overflow_charge_time"] % 60
+        )
+
+        # Update button states
+        self._update_button_states()
+
+
+def main(config: AppConfig):
     """Main entry point for the application."""
     root = ttk.Window(
         title="Biryani (Battery Reminder)", themename="litera", size=(650, 550)
     )
-    app = AppSettingUI(root)
+    app = AppSettingUI(root, config)
     root.mainloop()
