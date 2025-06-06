@@ -4,8 +4,8 @@ import os
 import json
 from typing import Literal, TypedDict
 
-APP_NAME = "Battery Reminder"
-CONFIG_FILE_NAME = f"{APP_NAME.lower().replace(' ', '_')}_config.json"
+APP_NAME = "battery-reminder"
+CONFIG_FILE_NAME = f"{APP_NAME.lower().replace('-', '_').replace(' ', '_')}_config.json"
 
 """
 Expected structure for the config.json file:
@@ -62,9 +62,9 @@ DEFAULT_CONFIG_DATA: AppConfig = {
         "alert_when_charger_plugged": True,
         "alert_when_charger_removed": True,
         "low_charge_percent": 10,
-        "high_charge_percent": 95,
-        "remind_low_charge_time": 5,  # minutes
-        "remind_high_charge_time": 10,  # minutes
+        "high_charge_percent": 50,
+        "remind_low_charge_time": 3,  # 5,  # minutes
+        "remind_high_charge_time": 3,  # 5,  # minutes
     },
     "GUI_SETTINGS": {"theme": "system"},
 }

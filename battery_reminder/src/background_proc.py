@@ -33,6 +33,20 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
         self.notifications = []
 
     def get_battery_data(self):
+        return {
+            "vendor": self.battery.vendor,
+            "model": self.battery.model,
+            "energy_rate": self.battery.energy_rate,
+            "technology": self.battery.technology,
+            "voltage": self.battery.voltage,
+            "temperature": self.battery.temperature or "Not Available",
+            # PERCENTAGE GOOD OF BATERY
+            "capacity": self.battery.capacity,
+            # ENERGY
+            "energy": self.battery.energy,
+            "energy_full": self.battery.energy_full,
+            "energy_full_design": self.battery.energy_full_design,
+        }
         """
                     (left_details, "Vendor:", "N/A"),
             (left_details, "Model:", "N/A"),
@@ -46,20 +60,6 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
         self.energy_full_value_label.pack(side=LEFT, padx=5)
         ttk.Label(label_container_frame, text="Energy Original Full:").pack(
         """
-        return {
-            "vendor": self.battery.vendor,
-            "model": self.battery.model,
-            "energy_rate": self.battery.energy_rate,
-            "technology": self.battery.technology,
-            "voltage": self.battery.voltage,
-            "temperature": self.battery.temperature,
-            # PERCENTAGE GOOD OF BATERY
-            "capacity": self.battery.capacity,
-            # ENERGY
-            "energy": self.battery.energy,
-            "energy_full": self.battery.energy_full,
-            "energy_full_design": self.battery.energy_full_design,
-        }
 
     def get_battery_state(self, config: AppConfig):
         charge_amount = self.battery.percent.value
