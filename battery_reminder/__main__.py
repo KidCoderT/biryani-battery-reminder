@@ -13,9 +13,10 @@ import os
 # from .config import load_config, save_config, get_app_name
 # from .startup_manager import add_to_startup, remove_from_startup
 
-from .src.gui import main
+from .src.settings_gui import main
+from .src.config import load_config
 
-main()
+main(load_config())
 
 # class App:
 #     def __init__(self):

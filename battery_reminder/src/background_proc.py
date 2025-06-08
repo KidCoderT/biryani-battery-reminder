@@ -3,7 +3,7 @@ import asyncio
 import atexit
 from pathlib import Path
 from typing import Literal
-import batteryinfo
+from batteryinfo import Battery, TimeFormat
 from desktop_notifier import DesktopNotifier, Icon, Urgency
 from .config import DEFAULT_CONFIG_DATA, AppConfig, get_app_name
 from .assets_manager import get_emoji
@@ -24,7 +24,7 @@ EVENTS = Literal["overflow", "high", "min"]
 
 class BackgroundProcessManager(metaclass=SingletonMeta):
     def __init__(self, app_name=get_app_name()) -> None:
-        self.battery = batteryinfo.Battery(time_format=batteryinfo.TimeFormat.Human)
+        self.battery = Battery(time_format=TimeFormat.Human)
         self.notifier = DesktopNotifier(app_name=app_name, notification_limit=5)
         self.current_charger_state = self.battery.state
         self.current_battery_state = BATTERY_STATE["NORMAL"]
@@ -251,14 +251,13 @@ async def main():
     while True:
         # await app.send_welcome_message()
         await app.update(DEFAULT_CONFIG_DATA)
-        await asyncio.sleep(10)
+        await asyncio.sleep(1)
         # print("updating")
 
 
 def clear_all_messages():
-    # app = BackgroundProcessManager()
-    # asyncio.run(app.clear_all_messages())
-    pass  # DEBUG
+    app = BackgroundProcessManager()
+    asyncio.run(app.clear_all_messages())
 
 
 atexit.register(clear_all_messages)

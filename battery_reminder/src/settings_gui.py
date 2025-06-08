@@ -1,6 +1,3 @@
-# TODO: OBSERVER CLASS
-# TODO: MAKE THE GUI AND BACK PROC INDEP
-
 import tkinter as tk
 from typing import Literal, Dict, Any
 import ttkbootstrap as ttk
@@ -12,7 +9,7 @@ from ttkbootstrap.scrolled import ScrolledFrame
 from ttkbootstrap.dialogs import Messagebox
 
 from battery_reminder.src.background_proc import BackgroundProcessManager
-from battery_reminder.src.config import AppConfig, save_config, DEFAULT_CONFIG_DATA
+from battery_reminder.src.config import AppConfig, save_config, get_default_config
 
 
 class AppSettingUI:
@@ -27,7 +24,7 @@ class AppSettingUI:
     METER_SIZE = 200
     METER_ARC_RANGE = 360
 
-    # Tooltip Descriptions
+    # Tooltip Description
     TOOLTIP_DESCRIPTIONS: Dict[str, str] = {
         "vendor": "Battery manufacturer.",
         "model": "Battery model name or number.",
@@ -58,12 +55,22 @@ class AppSettingUI:
         self._create_main_layout()
         self._create_header()
         self._create_notebook()
+        self.master.protocol("WM_DELETE_WINDOW", self.on_closing)  # Handle close button
 
         # Initialize button states
         self.reset_button.configure(state="disabled")
         self.save_button.configure(state="disabled")
+        self._update_button_states()
 
         self.toggle_theme()
+
+        self._reload_data()
+
+    def on_closing(self):
+        # When the user closes the GUI, hide it instead of destroying it
+        # so the system tray icon can still bring it back.
+        self.master.withdraw()
+        print("Settings GUI hidden.")
 
     def _setup_window(self) -> None:
         """Configure the main window properties."""
@@ -741,10 +748,10 @@ class AppSettingUI:
     def _update_button_states(self) -> None:
         """Update the state of reset and save buttons based on changes and errors."""
         current_data = self.get_current_settings()
-        has_changes = self.has_settings_changed(current_data)
+        has_changes = self.has_settings_changed(current_data, ignore_theme=True)
         has_errors = self.error_count > 0
         differs_from_default = self.has_settings_changed(
-            self.saved_data, DEFAULT_CONFIG_DATA
+            self.saved_data, get_default_config(), ignore_theme=True
         )
 
         # Reset button is enabled if there are changes
@@ -757,7 +764,7 @@ class AppSettingUI:
 
         # Save button is enabled if there are changes and no errors
         self.save_button.configure(
-            state="normal" if has_changes and not has_errors else "disabled"
+            state="normal" if not has_errors and has_changes else "disabled"
         )
 
     def get_current_settings(self) -> AppConfig:
@@ -788,7 +795,7 @@ class AppSettingUI:
         }
 
     def has_settings_changed(
-        self, new_data: AppConfig, old_data: AppConfig | None = None
+        self, new_data: AppConfig, old_data: AppConfig | None = None, ignore_theme=False
     ) -> bool:
         """Check if the new settings differ from the saved settings.
 
@@ -799,55 +806,75 @@ class AppSettingUI:
         Returns:
             bool: True if settings have changed, False otherwise
         """
-        if old_data is None:
-            old_data = self.saved_data
+        og_data = self.saved_data.copy()
+        if old_data is not None:
+            og_data = old_data.copy()
 
         # Compare PROC_SETTINGS
         for key, value in new_data["PROC_SETTINGS"].items():
-            if old_data["PROC_SETTINGS"][key] != value:
+            if og_data["PROC_SETTINGS"][key] != value:
                 return True
 
         # Compare GUI_SETTINGS
-        for key, value in new_data["GUI_SETTINGS"].items():
-            if old_data["GUI_SETTINGS"][key] != value:
-                return True
+        if not ignore_theme:
+            for key, value in new_data["GUI_SETTINGS"].items():
+                if og_data["GUI_SETTINGS"][key] != value:
+                    return True
 
         return False
 
     def reset_settings(self):
         """Reset all settings to their saved values."""
-        # Reset PROC_SETTINGS
-        self.run_on_startup_var.set(self.saved_data["PROC_SETTINGS"]["run_on_startup"])
-        self.charger_plugged_var.set(
-            self.saved_data["PROC_SETTINGS"]["alert_when_charger_plugged"]
-        )
-        self.charger_removed_var.set(
-            self.saved_data["PROC_SETTINGS"]["alert_when_charger_removed"]
-        )
-        self.low_battery_var.set(self.saved_data["PROC_SETTINGS"]["low_charge_percent"])
-        self.high_battery_var.set(
-            self.saved_data["PROC_SETTINGS"]["high_charge_percent"]
-        )
-        self.overflow_var.set(self.saved_data["PROC_SETTINGS"]["overflow_percent"])
-
-        # Reset time intervals
-        low_min, low_sec = self.low_interval_vars
-        high_min, high_sec = self.high_interval_vars
-        overflow_min, overflow_sec = self.overflow_interval_vars
-
-        low_min.set(self.saved_data["PROC_SETTINGS"]["remind_low_charge_time"] // 60)
-        low_sec.set(self.saved_data["PROC_SETTINGS"]["remind_low_charge_time"] % 60)
-        high_min.set(self.saved_data["PROC_SETTINGS"]["remind_high_charge_time"] // 60)
-        high_sec.set(self.saved_data["PROC_SETTINGS"]["remind_high_charge_time"] % 60)
-        overflow_min.set(
-            self.saved_data["PROC_SETTINGS"]["remind_overflow_charge_time"] // 60
-        )
-        overflow_sec.set(
-            self.saved_data["PROC_SETTINGS"]["remind_overflow_charge_time"] % 60
+        # Show confirmation dialog
+        result = Messagebox.yesno(
+            title="Confirm Reset",
+            message="Are you sure you want to reset all settings to their last saved values?",
+            parent=self.master,
         )
 
-        # Update button states
-        self._update_button_states()
+        if result == "Yes":
+            # Reset PROC_SETTINGS
+            self.run_on_startup_var.set(
+                self.saved_data["PROC_SETTINGS"]["run_on_startup"]
+            )
+            self.charger_plugged_var.set(
+                self.saved_data["PROC_SETTINGS"]["alert_when_charger_plugged"]
+            )
+            self.charger_removed_var.set(
+                self.saved_data["PROC_SETTINGS"]["alert_when_charger_removed"]
+            )
+            self.low_battery_var.set(
+                self.saved_data["PROC_SETTINGS"]["low_charge_percent"]
+            )
+            self.high_battery_var.set(
+                self.saved_data["PROC_SETTINGS"]["high_charge_percent"]
+            )
+            self.overflow_var.set(self.saved_data["PROC_SETTINGS"]["overflow_percent"])
+
+            # Reset time intervals
+            low_min, low_sec = self.low_interval_vars
+            high_min, high_sec = self.high_interval_vars
+            overflow_min, overflow_sec = self.overflow_interval_vars
+
+            low_min.set(
+                self.saved_data["PROC_SETTINGS"]["remind_low_charge_time"] // 60
+            )
+            low_sec.set(self.saved_data["PROC_SETTINGS"]["remind_low_charge_time"] % 60)
+            high_min.set(
+                self.saved_data["PROC_SETTINGS"]["remind_high_charge_time"] // 60
+            )
+            high_sec.set(
+                self.saved_data["PROC_SETTINGS"]["remind_high_charge_time"] % 60
+            )
+            overflow_min.set(
+                self.saved_data["PROC_SETTINGS"]["remind_overflow_charge_time"] // 60
+            )
+            overflow_sec.set(
+                self.saved_data["PROC_SETTINGS"]["remind_overflow_charge_time"] % 60
+            )
+
+            # Update button states
+            self._update_button_states()
 
     def update_theme(self):
         data = self.saved_data.copy()
@@ -1036,6 +1063,12 @@ class AppSettingUI:
         """Update all battery health related widgets with fresh data."""
         data = BackgroundProcessManager().get_battery_data()
 
+        for key, value in data.items():
+            if key not in self.battery_detail_labels or key == "capacity":
+                continue
+
+            self.battery_detail_labels[key].configure(text=value)
+
         # Update meter
         self.meter.configure(amountused=data["capacity"].value)
 
@@ -1044,53 +1077,102 @@ class AppSettingUI:
         self.energy_original_full_value_label.configure(text=data["energy_full_design"])
 
         # Update detail labels
-        self.battery_detail_labels["voltage"].configure(text=data["voltage"])
-        self.battery_detail_labels["temperature"].configure(text=data["temperature"])
+        # self.battery_detail_labels["voltage"].configure(text=data["voltage"])
+        # self.battery_detail_labels["temperature"].configure(text=data["temperature"])
 
     def reset_default(self) -> None:
         """Reset all settings to their default values."""
-        # Reset PROC_SETTINGS
-        self.run_on_startup_var.set(
-            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["run_on_startup"]
-        )
-        self.charger_plugged_var.set(
-            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["alert_when_charger_plugged"]
-        )
-        self.charger_removed_var.set(
-            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["alert_when_charger_removed"]
-        )
-        self.low_battery_var.set(
-            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["low_charge_percent"]
-        )
-        self.high_battery_var.set(
-            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["high_charge_percent"]
-        )
-        self.overflow_var.set(DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["overflow_percent"])
-
-        # Reset time intervals
-        low_min, low_sec = self.low_interval_vars
-        high_min, high_sec = self.high_interval_vars
-        overflow_min, overflow_sec = self.overflow_interval_vars
-
-        low_min.set(
-            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_low_charge_time"] // 60
-        )
-        low_sec.set(DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_low_charge_time"] % 60)
-        high_min.set(
-            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_high_charge_time"] // 60
-        )
-        high_sec.set(
-            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_high_charge_time"] % 60
-        )
-        overflow_min.set(
-            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_overflow_charge_time"] // 60
-        )
-        overflow_sec.set(
-            DEFAULT_CONFIG_DATA["PROC_SETTINGS"]["remind_overflow_charge_time"] % 60
+        # Show confirmation dialog
+        result = Messagebox.yesno(
+            title="Confirm Reset to Default",
+            message="Are you sure you want to reset all settings to their default values? This cannot be undone.",
+            parent=self.master,
         )
 
-        # Update button states
-        self._update_button_states()
+        if result == "Yes":
+            # Reset PROC_SETTINGS
+            self.run_on_startup_var.set(
+                get_default_config()["PROC_SETTINGS"]["run_on_startup"]
+            )
+            self.charger_plugged_var.set(
+                get_default_config()["PROC_SETTINGS"]["alert_when_charger_plugged"]
+            )
+            self.charger_removed_var.set(
+                get_default_config()["PROC_SETTINGS"]["alert_when_charger_removed"]
+            )
+            self.low_battery_var.set(
+                get_default_config()["PROC_SETTINGS"]["low_charge_percent"]
+            )
+            self.high_battery_var.set(
+                get_default_config()["PROC_SETTINGS"]["high_charge_percent"]
+            )
+            self.overflow_var.set(
+                get_default_config()["PROC_SETTINGS"]["overflow_percent"]
+            )
+
+            # Reset time intervals
+            low_min, low_sec = self.low_interval_vars
+            high_min, high_sec = self.high_interval_vars
+            overflow_min, overflow_sec = self.overflow_interval_vars
+
+            low_min.set(
+                get_default_config()["PROC_SETTINGS"]["remind_low_charge_time"] // 60
+            )
+            low_sec.set(
+                get_default_config()["PROC_SETTINGS"]["remind_low_charge_time"] % 60
+            )
+            high_min.set(
+                get_default_config()["PROC_SETTINGS"]["remind_high_charge_time"] // 60
+            )
+            high_sec.set(
+                get_default_config()["PROC_SETTINGS"]["remind_high_charge_time"] % 60
+            )
+            overflow_min.set(
+                get_default_config()["PROC_SETTINGS"]["remind_overflow_charge_time"]
+                // 60
+            )
+            overflow_sec.set(
+                get_default_config()["PROC_SETTINGS"]["remind_overflow_charge_time"]
+                % 60
+            )
+
+            # Update button states
+            self._update_button_states()
+
+    def _reload_data(self):
+        """Reload the data from the config file."""
+        try:
+            data = BackgroundProcessManager().get_battery_data()
+
+            # Update all detail labels
+            for key, value in data.items():
+                if key not in self.battery_detail_labels or key == "capacity":
+                    continue
+                self.battery_detail_labels[key].configure(text=str(value))
+
+            # Update meter with capacity
+            if hasattr(data["capacity"], "value"):
+                self.meter.configure(amountused=data["capacity"].value)
+            else:
+                self.meter.configure(amountused=0)
+
+            # Update energy labels
+            self.energy_full_value_label.configure(text=str(data["energy_full"]))
+            self.energy_original_full_value_label.configure(
+                text=str(data["energy_full_design"])
+            )
+
+        except Exception as e:
+            print(f"Error updating battery data: {e}")
+            # Set loading state for all fields
+            for label in self.battery_detail_labels.values():
+                label.configure(text="Loading...")
+            self.meter.configure(amountused=0)
+            self.energy_full_value_label.configure(text="Loading...")
+            self.energy_original_full_value_label.configure(text="Loading...")
+
+        # Schedule next update
+        self.master.after(1000, self._reload_data)
 
 
 def main(config: AppConfig):

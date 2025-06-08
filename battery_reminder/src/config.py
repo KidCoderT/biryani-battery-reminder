@@ -3,6 +3,7 @@ import sys
 import os
 import json
 from typing import Literal, TypedDict
+from copy import deepcopy
 
 APP_NAME = "battery-reminder"
 CONFIG_FILE_NAME = f"{APP_NAME.lower().replace('-', '_').replace(' ', '_')}_config.json"
@@ -61,18 +62,23 @@ class AppConfig(TypedDict):
 
 DEFAULT_CONFIG_DATA: AppConfig = {
     "PROC_SETTINGS": {
-        "run_on_startup": False,
+        "run_on_startup": True,
         "alert_when_charger_plugged": True,
         "alert_when_charger_removed": True,
         "low_charge_percent": 10,
         "high_charge_percent": 90,
         "overflow_percent": 98,
-        "remind_low_charge_time": 3,  # 5,  # minutes
-        "remind_high_charge_time": 3,  # 5,  # minutes
-        "remind_overflow_charge_time": 5,
+        "remind_low_charge_time": 1 * 60 + 30,
+        "remind_high_charge_time": 3 * 60,
+        "remind_overflow_charge_time": 1 * 60,
     },
     "GUI_SETTINGS": {"theme": "light"},
 }
+
+
+def get_default_config():
+    return DEFAULT_CONFIG_DATA
+
 
 # -------------------------------------------------
 
@@ -113,7 +119,7 @@ def load_config() -> AppConfig:
                 # Load the raw dictionary first, then cast to AppConfig
                 loaded_config_raw: dict = json.load(config_file)
 
-            config = DEFAULT_CONFIG_DATA.copy()  # Start with a copy of defaults
+            config = deepcopy(DEFAULT_CONFIG_DATA)  # Use deepcopy instead of copy
             for section_key, section_defaults in DEFAULT_CONFIG_DATA.items():
                 if section_key in loaded_config_raw and isinstance(
                     loaded_config_raw[section_key], dict
@@ -126,27 +132,21 @@ def load_config() -> AppConfig:
                     )
 
             # Check if the loaded config needed any updates from defaults and save if so
-            # To do a proper comparison, we need to reload the file after potential updates
-            # This is a bit redundant but ensures we only save if truly modified.
-            # A more efficient way might involve a flag set during the update loop.
             original_file_content = ""
             with open(config_path, "r") as f:
                 original_file_content = f.read()
 
-            # Compare the string representation of the potentially updated config with the original
-            # This is a simple way to detect if a save is needed due to migration.
-            # A more robust check would involve deep comparison of dictionaries.
             temp_config_str = json.dumps(config, indent=4)
             if temp_config_str != original_file_content.strip():
                 save_config(config)
 
         except json.JSONDecodeError:
             print(f"Error decoding JSON from {config_path}. Creating default config.")
-            config = DEFAULT_CONFIG_DATA
+            config = deepcopy(DEFAULT_CONFIG_DATA)  # Use deepcopy here too
             save_config(config)
     else:
         print(f"Config file not found at {config_path}. Creating default.")
-        config = DEFAULT_CONFIG_DATA
+        config = deepcopy(DEFAULT_CONFIG_DATA)  # And here
         save_config(config)  # Create the default config file
 
     return config
@@ -167,5 +167,6 @@ __all__ = [
     "load_config",
     "save_config",
     "AppConfig",
-    "DEFAULT_CONFIG_DATA",
+    # "DEFAULT_CONFIG_DATA",
+    "get_default_config",
 ]
