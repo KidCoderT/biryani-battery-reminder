@@ -1,11 +1,23 @@
 import random
 from pathlib import Path
+from PIL import Image
 import typing
 
 ASSETS_FOLDER = Path("./assets").absolute()
 assert ASSETS_FOLDER.exists()
 
-ICON = ASSETS_FOLDER / "icon.ico"
+
+def load_image(path: Path):
+    assert path.exists(), f"IMAGE '{path}' DOESNT EXIST"
+    assert path.is_file(), f"IMAGE '{path}' IS INVALID TYPE!!"
+    return Image.open(path)
+
+
+APP_ICONS = {  # BASED ON THE APP PROCESS STATE IF ITS WORKING OR NOT
+    True: load_image(ASSETS_FOLDER / "working.ico"),
+    False: load_image(ASSETS_FOLDER / "not-working-yet.ico"),
+}
+
 EMOJIS_FOLDER = ASSETS_FOLDER / "emojis"
 
 EMOJI_TYPES = typing.Literal[
@@ -16,8 +28,8 @@ EMOJI: dict[EMOJI_TYPES, Path] = {
 }
 
 
-def app_icon():
-    return ICON
+def app_icon(background_proc_state: bool):
+    return APP_ICONS[background_proc_state]
 
 
 def get_emoji(type: EMOJI_TYPES | list[EMOJI_TYPES]):
@@ -31,4 +43,4 @@ def get_emoji(type: EMOJI_TYPES | list[EMOJI_TYPES]):
     return icon
 
 
-__all__ = ["app_icon", "get_emoji"]
+__all__ = ["APP_ICONS", "get_emoji"]

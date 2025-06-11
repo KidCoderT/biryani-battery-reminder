@@ -6,7 +6,6 @@ from pathlib import Path
 import ttkbootstrap as ttk
 from tkinter import Toplevel
 from pystray import Icon, Menu, MenuItem
-from PIL import Image
 import os
 
 
@@ -45,6 +44,7 @@ class App:
                 target=run_background_process, daemon=True
             )
             self.background_thread.start()
+            self.tray_icon.icon = app_icon(True)
             print("Background process started.")
         else:
             print("Background process is already running.")
@@ -57,6 +57,7 @@ class App:
             if self.background_thread.is_alive():
                 print("Warning: Background thread did not terminate gracefully.")
             self.background_thread = None
+            self.tray_icon.icon = app_icon(False)
             print("Background process stopped.")
         else:
             print("Background process is not running.")
@@ -93,8 +94,7 @@ class App:
         sys.exit(0)
 
     def setup_tray_icon(self):
-        icon_path = app_icon()
-        image = Image.open(icon_path)
+        icon_image = app_icon(not stop_background_process_flag.is_set())
 
         menu = Menu(
             MenuItem("Open Settings", self.open_settings),
@@ -103,7 +103,7 @@ class App:
             MenuItem("Quit", self.on_quit_callback),
         )
 
-        self.tray_icon = Icon(self.app_name, image, self.app_name, menu)
+        self.tray_icon = Icon(self.app_name, icon_image, self.app_name, menu)
         threading.Thread(target=self.tray_icon.run, daemon=True).start()
         print("System tray icon set up.")
 
