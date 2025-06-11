@@ -3,138 +3,164 @@ import sys
 import threading
 import asyncio
 from pathlib import Path
-from tkinter import Tk, Toplevel
+import ttkbootstrap as ttk
+from tkinter import Toplevel
 from pystray import Icon, Menu, MenuItem
 from PIL import Image
 import os
 
-# from .gui import SettingsApp
-# from .background_service import run_background_process, stop_background_process_flag
-# from .config import load_config, save_config, get_app_name
-# from .startup_manager import add_to_startup, remove_from_startup
 
-# from .src.settings_gui import main
-# from .src.config import load_config
-from .src.background_proc import main
+from .src.settings_gui import AppSettingUI
+from .src.config import load_config, get_app_name
+from .src.assets_manager import app_icon
+from .src.background_proc import run_background_process, stop_background_process_flag
+from .src.startup_manager import add_to_startup, remove_from_startup
 
-# main(load_config())
-asyncio.run(main())
 
-# class App:
-#     def __init__(self):
-#         self.app_name = get_app_name()
-#         self.config = load_config()
-#         self.background_thread = None
-#         self.gui_window = None
-#         self.tray_icon = None
-#
-#         # Determine if the app should run background process immediately
-#         # if self.config.getboolean("Settings", "run_on_startup", fallback=False):
-#         #     self.start_background_process()
-#
-#         self.setup_tray_icon()
-#
-#     # def start_background_process(self):
-#     #     if self.background_thread is None or not self.background_thread.is_alive():
-#     #         print("Starting background process...")
-#     #         stop_background_process_flag.clear()  # Ensure flag is clear
-#     #         self.background_thread = threading.Thread(
-#     #             target=run_background_process, daemon=True
-#     #         )
-#     #         self.background_thread.start()
-#     #         print("Background process started.")
-#     #     else:
-#     #         print("Background process is already running.")
-#
-#     # def stop_background_process(self):
-#     #     if self.background_thread and self.background_thread.is_alive():
-#     #         print("Stopping background process...")
-#     #         stop_background_process_flag.set()  # Signal to stop
-#     #         self.background_thread.join(
-#     #             timeout=5
-#     #         )  # Wait for thread to finish (with timeout)
-#     #         if self.background_thread.is_alive():
-#     #             print("Warning: Background thread did not terminate gracefully.")
-#     #         self.background_thread = None
-#     #         print("Background process stopped.")
-#     #     else:
-#     #         print("Background process is not running.")
-#
-#     # def open_settings(self):
-#     #     if self.gui_window is None or not self.gui_window.winfo_exists():
-#     #         print("Opening settings GUI...")
-#     #         self.gui_window = Tk()
-#     #         self.gui_window.withdraw()  # Hide the main Tkinter window
-#     #         settings_app = SettingsApp(self.gui_window, self)
-#     #         self.gui_window.mainloop()  # Start Tkinter event loop for the settings window
-#     #     else:
-#     #         print("Settings GUI is already open.")
-#     #         self.gui_window.deiconify()  # Bring to front if minimized/hidden
-#
-#     # def on_quit_callback(self, icon):
-#     #     print("Quitting application...")
-#     #     self.stop_background_process()
-#     #     icon.stop()
-#     #     if self.gui_window and self.gui_window.winfo_exists():
-#     #         self.gui_window.quit()  # Stop Tkinter event loop for the GUI
-#
-#     def setup_tray_icon(self):
-#         # Load icon (make sure 'assets/icon.ico' exists)
-#
-#         icon_path = Path("./emojis/icon.ico").absolute()
-#         image = Image.open(icon_path)
-#
-#         # Create menu items
-#         menu = Menu(
-#             MenuItem(
-#                 "Open Settings", lambda: print("open settings")
-#             ),  # self.open_settings),
-#             MenuItem(
-#                 "Start Background", lambda: print("start background proc"), default=True
-#             ),  # self.start_background_process),
-#             MenuItem(
-#                 "Stop Background", lambda: print("stop backgroun proc")
-#             ),  # self.stop_background_process),
-#             MenuItem("Quit", lambda: print("quit")),  # self.on_quit_callback),
-#         )
-#
-#         onclicked = lambda: print("clicked")
-#
-#         self.tray_icon = Icon(self.app_name, image, self.app_name, menu)
-#         # Run in a separate thread to not block the main process
-#         threading.Thread(target=self.tray_icon.run, daemon=True).start()
-#         print("System tray icon set up.")
-#
-#     # def update_startup_setting(self, run_on_startup):
-#     #     if run_on_startup:
-#     #         add_to_startup(self.app_name)
-#     #     else:
-#     #         remove_from_startup(self.app_name)
-#     #
-#     #     self.config.set("Settings", "run_on_startup", str(run_on_startup))
-#     #     save_config(self.config)
-#     #     print(f"Startup setting updated: {run_on_startup}")
-#
-#
-# def main():
-#     app_instance = App()
-#     # If the app was launched by clicking the EXE (not on startup)
-#     # and "run_on_startup" is false, we should only show the GUI.
-#     # The background process is *only* started if 'run_on_startup' is true
-#     # or if the user explicitly clicks "Start Background" or launches the GUI
-#     # and the GUI then starts the background process.
-#
-#     # Here, we ensure the GUI is shown when the user explicitly launches the app.
-#     # The tray icon is always present, so the user can control from there.
-#     # If `run_on_startup` is False, the background process is NOT started automatically
-#     # when the user clicks the EXE, only the GUI will show.
-#     # The user can then enable `run_on_startup` from the GUI.
-#     # if not app_instance.config.getboolean("Settings", "run_on_startup", fallback=False):
-#     #     app_instance.open_settings()
-#
-#     while True:
-#         time.sleep(0.5)
-#
-#
-# if __name__ == "__main__":
-#     main()
+class App:
+    def __init__(self):
+        self.app_name = get_app_name()
+        self.config = load_config()
+        self.background_thread = None
+
+        self.settings_app_instance = None
+        self.gui_window = None
+        self.tray_icon = None
+
+        # Initialize the main window but keep it hidden
+        self.gui_window = ttk.Window()
+        self.gui_window.withdraw()
+        self.settings_app_instance = AppSettingUI(self.gui_window)
+
+        if self.config["PROC_SETTINGS"]["run_on_startup"]:
+            self.start_background_process()
+
+        self.setup_tray_icon()
+
+    def start_background_process(self):
+        if self.background_thread is None or not self.background_thread.is_alive():
+            print("Starting background process...")
+            stop_background_process_flag.clear()
+            self.background_thread = threading.Thread(
+                target=run_background_process, daemon=True
+            )
+            self.background_thread.start()
+            print("Background process started.")
+        else:
+            print("Background process is already running.")
+
+    def stop_background_process(self):
+        if self.background_thread and self.background_thread.is_alive():
+            print("Stopping background process...")
+            stop_background_process_flag.set()
+            self.background_thread.join(timeout=10)
+            if self.background_thread.is_alive():
+                print("Warning: Background thread did not terminate gracefully.")
+            self.background_thread = None
+            print("Background process stopped.")
+        else:
+            print("Background process is not running.")
+
+    def open_settings(self):
+        if not self.gui_window.winfo_exists():
+            self.gui_window = ttk.Window()
+            self.gui_window.withdraw()
+            self.settings_app_instance = AppSettingUI(self.gui_window)
+            print("Settings GUI recreated and shown.")
+
+        self.gui_window.deiconify()
+        self.gui_window.lift()
+        self.gui_window.attributes("-topmost", True)
+        self.gui_window.attributes("-topmost", False)
+        print("Settings GUI shown.")
+
+    def on_quit_callback(self, icon):
+        print("Quitting application initiated...")
+
+        self.stop_background_process()
+
+        if self.tray_icon:
+            print("Stopping system tray icon...")
+            self.tray_icon.stop()
+
+        if self.gui_window and self.gui_window.winfo_exists():
+            print("Destroying settings GUI...")
+            self.gui_window.destroy()
+            self.gui_window = None
+            self.settings_app_instance = None
+
+        print("Exiting Python process...")
+        sys.exit(0)
+
+    def setup_tray_icon(self):
+        icon_path = app_icon()
+        image = Image.open(icon_path)
+
+        menu = Menu(
+            MenuItem("Open Settings", self.open_settings),
+            MenuItem("Start Background", self.start_background_process, default=True),
+            MenuItem("Stop Background", self.stop_background_process),
+            MenuItem("Quit", self.on_quit_callback),
+        )
+
+        self.tray_icon = Icon(self.app_name, image, self.app_name, menu)
+        threading.Thread(target=self.tray_icon.run, daemon=True).start()
+        print("System tray icon set up.")
+
+
+def main():
+    app_instance = App()
+
+    if not app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
+        app_instance.open_settings()
+
+    # Run the Tkinter mainloop in the main thread
+    app_instance.gui_window.mainloop()
+
+
+if __name__ == "__main__":
+    main()
+
+"""
+Application Overview and Process Flow:
+
+1. Application Structure:
+   - The app is a system tray application with a GUI settings window
+   - Uses Tkinter for GUI and pystray for system tray functionality
+   - Implements a background process for battery monitoring
+
+2. Main Components:
+   - App class: Core application logic and state management
+   - System tray icon: Persistent interface for user control
+   - Settings GUI: Configuration interface
+   - Background process: Battery monitoring thread
+
+3. Startup Process:
+   - Application initializes with configuration from config file
+   - Creates system tray icon
+   - If 'run_on_startup' is enabled, starts background process
+   - If launched manually (not on startup), opens settings GUI
+
+4. Key Features:
+   - System tray integration with menu options
+   - Settings GUI for configuration
+   - Background process control (start/stop)
+   - Startup management
+   - Clean shutdown process
+
+5. Threading Model:
+   - Main thread: Handles GUI and application flow
+   - Background thread: Runs battery monitoring process
+   - Tray icon thread: Manages system tray interface
+
+6. Shutdown Process:
+   - Stops background process
+   - Removes system tray icon
+   - Destroys GUI windows
+   - Performs clean exit
+
+7. Configuration:
+   - Loads settings from config file
+   - Manages startup behavior
+   - Controls background process state
+"""

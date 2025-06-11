@@ -9,7 +9,12 @@ from ttkbootstrap.scrolled import ScrolledFrame
 from ttkbootstrap.dialogs import Messagebox
 
 from battery_reminder.src.background_proc import BackgroundProcessManager
-from battery_reminder.src.config import AppConfig, save_config, get_default_config
+from battery_reminder.src.config import (
+    AppConfig,
+    save_config,
+    get_default_config,
+    load_config,
+)
 
 
 class AppSettingUI:
@@ -42,14 +47,15 @@ class AppSettingUI:
         "voltage": "Current battery voltage (V).",
     }
 
-    def __init__(self, main_window: ttk.Window, data: AppConfig) -> None:
+    def __init__(self, main_window: ttk.Window) -> None:
         """Initialize the application UI.
 
         Args:
             main_window: The main ttkbootstrap window instance
         """
         self.master = main_window
-        self.saved_data = data
+        self.master.title("Biryani (Battery Reminder)")
+        self.saved_data = load_config()
         self._setup_window()
         self._initialize_theme()
         self._create_main_layout()
@@ -237,7 +243,9 @@ class AppSettingUI:
         # Run on Startup inside General Settings
         run_on_startup_label = ttk.Label(general_labelframe, text="Run on Startup:")
         run_on_startup_label.grid(row=0, column=0, sticky=W, padx=10, pady=(5, 15))
-        self.run_on_startup_var = tk.BooleanVar(value=False)
+        self.run_on_startup_var = tk.BooleanVar(
+            value=False
+        )  # TODO: UPDATE STARTUP SETTING ON SAVE
         self.run_on_startup_var.trace_add("write", on_variable_change)
         run_on_startup_check = ttk.Checkbutton(
             general_labelframe,
@@ -891,6 +899,9 @@ class AppSettingUI:
         # Update the saved data reference
         self.saved_data = current_data
 
+        # Update the config for the bacckground process
+        BackgroundProcessManager().update_config(current_data)
+
         # Show notification using Messagebox
         Messagebox.ok(
             title="Settings Saved",
@@ -1175,10 +1186,10 @@ class AppSettingUI:
         self.master.after(1000, self._reload_data)
 
 
-def main(config: AppConfig):
+def main():
     """Main entry point for the application."""
     root = ttk.Window(
         title="Biryani (Battery Reminder)", themename="litera", size=(650, 550)
     )
-    app = AppSettingUI(root, config)
+    app = AppSettingUI(root)
     root.mainloop()
