@@ -15,6 +15,10 @@ from battery_reminder.src.config import (
     get_default_config,
     load_config,
 )
+from battery_reminder.src.logger_config import setup_logger
+
+# Initialize logger
+logger = setup_logger()
 
 
 class AppSettingUI:
@@ -60,6 +64,7 @@ class AppSettingUI:
         Args:
             main_window: The main ttkbootstrap window instance
         """
+        logger.info("Initializing settings GUI...")
         self.master = main_window
         self.master.title("Biryani (Battery Reminder)")
         self.saved_data = load_config()
@@ -82,22 +87,25 @@ class AppSettingUI:
         self._update_button_states()
 
         self.toggle_theme()
-
         self._reload_data()
+        logger.info("Settings GUI initialized successfully")
 
     def on_closing(self):
+        logger.info("Settings GUI closing...")
         # When the user closes the GUI, hide it instead of destroying it
         # so the system tray icon can still bring it back.
         self.master.withdraw()
-        print("Settings GUI hidden.")
+        logger.info("Settings GUI hidden")
 
     def _setup_window(self) -> None:
         """Configure the main window properties."""
+        logger.debug("Setting up main window properties")
         self.master.geometry(self.WINDOW_SIZE)
         self.master.resizable(False, False)
 
     def _initialize_theme(self) -> None:
         """Initialize theme-related settings and styles."""
+        logger.debug("Initializing theme settings")
         self.theme: Literal["light", "dark"] = (
             "light" if self.saved_data["GUI_SETTINGS"]["theme"] == "dark" else "dark"
         )
@@ -128,6 +136,7 @@ class AppSettingUI:
             "dark": " ☀",
             "light": "🌕",
         }
+        logger.debug(f"Initialized theme: {self.theme}")
 
     def _create_main_layout(self) -> None:
         """Create the main application layout."""
@@ -206,6 +215,9 @@ class AppSettingUI:
 
     def toggle_theme(self) -> None:
         """Toggle between light and dark themes."""
+        logger.info(
+            f"Toggling theme from {self.theme} to {'light' if self.theme == 'dark' else 'dark'}"
+        )
         self.theme = "light" if self.theme == "dark" else "dark"
 
         # Update theme
@@ -224,6 +236,7 @@ class AppSettingUI:
         self.theme_button.configure(text=self.icons[self.theme], style=style)
         # self.reload_btn.configure(style=style)
         self.update_theme()
+        logger.debug("Theme toggled successfully")
 
     def create_app_settings_widgets(self, frame: ttk.Frame) -> None:
         """Create app settings widgets.
@@ -853,6 +866,7 @@ class AppSettingUI:
 
     def reset_settings(self):
         """Reset all settings to their saved values."""
+        logger.info("Resetting settings to last saved values...")
         # Show confirmation dialog
         result = Messagebox.yesno(
             title="Confirm Reset",
@@ -903,6 +917,7 @@ class AppSettingUI:
 
             # Update button states
             self._update_button_states()
+            logger.info("Settings reset to last saved values")
 
     def update_theme(self):
         data = self.saved_data.copy()
@@ -911,6 +926,7 @@ class AppSettingUI:
 
     def save_settings(self):
         """Save the current settings and update the saved data."""
+        logger.info("Saving settings...")
         current_data = self.get_current_settings()
 
         # Save the data
@@ -919,7 +935,7 @@ class AppSettingUI:
         # Update the saved data reference
         self.saved_data = current_data
 
-        # Update the config for the bacckground process
+        # Update the config for the background process
         BackgroundProcessManager().update_config(current_data)
 
         # Show notification using Messagebox
@@ -931,6 +947,7 @@ class AppSettingUI:
 
         # Update button states
         self._update_button_states()
+        logger.info("Settings saved successfully")
 
     def create_battery_health_widgets(self, frame: ttk.Frame) -> None:
         """Create battery health monitoring widgets.
@@ -1113,6 +1130,7 @@ class AppSettingUI:
 
     def reset_default(self) -> None:
         """Reset all settings to their default values."""
+        logger.info("Resetting settings to default values...")
         # Show confirmation dialog
         result = Messagebox.yesno(
             title="Confirm Reset to Default",
@@ -1169,11 +1187,13 @@ class AppSettingUI:
 
             # Update button states
             self._update_button_states()
+            logger.info("Settings reset to default values")
 
     def _reload_data(self):
         """Reload the data from the config file."""
         try:
             data = BackgroundProcessManager().get_battery_data()
+            logger.debug("Reloading battery data")
 
             # Update all detail labels
             for key, value in data.items():
@@ -1194,7 +1214,7 @@ class AppSettingUI:
             )
 
         except Exception as e:
-            print(f"Error updating battery data: {e}")
+            logger.error(f"Error updating battery data: {str(e)}")
             # Set loading state for all fields
             for label in self.battery_detail_labels.values():
                 label.configure(text="Loading...")
@@ -1305,6 +1325,7 @@ class AppSettingUI:
 
     def _start_app(self) -> None:
         """Start the battery monitoring service."""
+        logger.info("Starting battery monitoring service...")
         try:
             self.start_proc()
             self._update_app_status()
@@ -1313,7 +1334,9 @@ class AppSettingUI:
                 message="Battery monitoring service has been started.",
                 parent=self.master,
             )
+            logger.info("Battery monitoring service started successfully")
         except Exception as e:
+            logger.error(f"Failed to start battery monitoring service: {str(e)}")
             Messagebox.show_error(
                 title="Error",
                 message=f"Failed to start the service: {str(e)}",
@@ -1322,6 +1345,7 @@ class AppSettingUI:
 
     def _stop_app(self) -> None:
         """Stop the battery monitoring service."""
+        logger.info("Stopping battery monitoring service...")
         try:
             self.stop_proc()
             self._update_app_status()
@@ -1330,7 +1354,9 @@ class AppSettingUI:
                 message="Battery monitoring service has been stopped.",
                 parent=self.master,
             )
+            logger.info("Battery monitoring service stopped successfully")
         except Exception as e:
+            logger.error(f"Failed to stop battery monitoring service: {str(e)}")
             Messagebox.show_error(
                 title="Error",
                 message=f"Failed to stop the service: {str(e)}",
@@ -1339,6 +1365,7 @@ class AppSettingUI:
 
     def _report_bug(self) -> None:
         """Open the bug report dialog."""
+        logger.info("Opening bug report dialog")
         # TODO: Implement bug reporting functionality
         Messagebox.show_info(
             title="Bug Report",

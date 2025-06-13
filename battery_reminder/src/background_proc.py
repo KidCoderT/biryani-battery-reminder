@@ -8,9 +8,12 @@ from desktop_notifier import DesktopNotifier, Icon, Urgency
 from .config import DEFAULT_CONFIG_DATA, AppConfig, get_app_name, load_config
 from .assets_manager import get_emoji
 from .utils import SingletonMeta
+from .logger_config import setup_logger
 
 import threading
 
+# Initialize logger
+logger = setup_logger()
 
 NOTIFICATION_TIMEOUT = -1
 
@@ -26,6 +29,7 @@ EVENTS = Literal["overflow", "high", "min"]
 
 class BackgroundProcessManager(metaclass=SingletonMeta):
     def __init__(self, app_name=get_app_name(), _class=Battery) -> None:
+        logger.info("Initializing background process manager...")
         self.battery: Battery = _class(time_format=TimeFormat.Human)
         self.notifier = DesktopNotifier(app_name=app_name, notification_limit=5)
         self.current_charger_state = self.battery.state
@@ -34,8 +38,10 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
 
         self.notifications = []
         self.config = load_config()
+        logger.info("Background process manager initialized successfully")
 
     def get_battery_data(self):
+        logger.debug("Fetching battery data")
         return {
             "vendor": self.battery.vendor,
             "model": self.battery.model,
@@ -62,6 +68,7 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
         elif charge_amount <= self.config["PROC_SETTINGS"]["low_charge_percent"]:
             state = BATTERY_STATE["LOW"]
 
+        logger.debug(f"Battery state: {state} (Charge: {charge_amount}%)")
         return state
 
     @property
@@ -81,6 +88,7 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
         return self.battery.state == "Charging"
 
     async def send_welcome_message(self):
+        logger.info("Sending welcome message")
         if self.is_charging:
             message = f"You are currently charging your laptop, Its {self.percentage:.1f}%. {self.time_to_full} until 100% charge!"
         else:
@@ -94,8 +102,10 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
         )
 
         self.notifications.append(notification)
+        logger.debug("Welcome message sent successfully")
 
     async def send_charging_message(self):
+        logger.info("Sending charging message")
         if self.current_battery_state == BATTERY_STATE["OVERLFLOW"]:
             notification = await self.notifier.send(
                 title="Please STOP Charging",
@@ -121,8 +131,10 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
             )
 
         self.notifications.append(notification)
+        logger.debug("Charging message sent successfully")
 
     async def send_discharging_message(self):
+        logger.info("Sending discharging message")
         if self.current_battery_state == BATTERY_STATE["LOW"]:
             notification = await self.notifier.send(
                 title="Dont Stop Charging!",
@@ -139,8 +151,10 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
                 timeout=NOTIFICATION_TIMEOUT,
             )
         self.notifications.append(notification)
+        logger.debug("Discharging message sent successfully")
 
     async def send_removal_warning(self):
+        logger.info("Sending removal warning")
         notification = await self.notifier.send(
             title=f"Its {self.percentage:.1f}% Full",
             message=f"You should remove the charger now! There is {self.time_to_full or ''} of time left until full charge! Better to not spoil your battery!",
@@ -149,8 +163,10 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
         )
 
         self.notifications.append(notification)
+        logger.debug("Removal warning sent successfully")
 
     async def send_overflow_warning(self):
+        logger.info("Sending overflow warning")
         if self.percentage == 100:
             notification = await self.notifier.send(
                 title="Please Stop Charging!",
@@ -169,8 +185,10 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
             )
 
         self.notifications.append(notification)
+        logger.debug("Overflow warning sent successfully")
 
     async def send_charge_reminder(self):
+        logger.info("Sending charge reminder")
         notification = await self.notifier.send(
             title="Battery too low!",
             message=f"You have only {self.percentage:.1f}% battery left which will last for {self.time_to_empty}. Charge quickly!",
@@ -179,8 +197,10 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
         )
 
         self.notifications.append(notification)
+        logger.debug("Charge reminder sent successfully")
 
     async def send_updated_settings_message(self):
+        logger.info("Sending settings update message")
         notification = await self.notifier.send(
             title="Settings Updated!",
             message="The settings has been changed and saved successfuly!",
@@ -189,6 +209,7 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
         )
 
         self.notifications.append(notification)
+        logger.debug("Settings update message sent successfully")
 
     def reminder_time_passed(
         self,
@@ -198,142 +219,132 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
     ) -> bool:
         if reset_timer:
             self.timers[event_name] = time.time()
+            logger.debug(f"Reset timer for event: {event_name}")
             return False
 
         # print(f"checking {event_name}")
         if event_name not in self.timers:
             self.timers[event_name] = time.time()
+            logger.debug(f"Initialized timer for event: {event_name}")
             return True
 
         out = time.time() - self.timers[event_name] >= elapsed_time_in_seconds
         if out:
             self.timers[event_name] = time.time()
+            logger.debug(f"Timer passed for event: {event_name}")
         return out
 
     async def update(self):
-        self.battery.refresh()
-        self.current_battery_state = self.get_battery_state()
-        # print(self.percentage, "-", self.current_battery_state)
-        # print(self.current_charger_state)
+        try:
+            self.battery.refresh()
+            self.current_battery_state = self.get_battery_state()
+            logger.debug(
+                f"Battery state: {self.current_battery_state}, Charger state: {self.current_charger_state}"
+            )
 
-        if self.battery.state != self.current_charger_state:
-            new_state = self.battery.state
-            if new_state == "Charging":
-                if self.config["PROC_SETTINGS"]["alert_when_charger_plugged"]:
-                    await self.send_charging_message()
-            else:
-                if self.config["PROC_SETTINGS"]["alert_when_charger_removed"]:
-                    await self.send_discharging_message()
+            if self.battery.state != self.current_charger_state:
+                new_state = self.battery.state
+                logger.info(
+                    f"Charger state changed from {self.current_charger_state} to {new_state}"
+                )
+                if new_state == "Charging":
+                    if self.config["PROC_SETTINGS"]["alert_when_charger_plugged"]:
+                        await self.send_charging_message()
+                else:
+                    if self.config["PROC_SETTINGS"]["alert_when_charger_removed"]:
+                        await self.send_discharging_message()
 
-            self.current_charger_state = new_state
-            print("state changed")
+                self.current_charger_state = new_state
+                logger.debug("state changed")
 
-        elif self.current_charger_state == "Charging":
-            charge_amount = self.battery.percent.value
-            pause_time = self.config["PROC_SETTINGS"]["remind_high_charge_time"]
+            elif self.current_charger_state == "Charging":
+                charge_amount = self.battery.percent.value
+                pause_time = self.config["PROC_SETTINGS"]["remind_high_charge_time"]
 
-            if charge_amount >= self.config["PROC_SETTINGS"][
-                "overflow_percent"
-            ] and self.reminder_time_passed(
-                "overflow", self.config["PROC_SETTINGS"]["remind_overflow_charge_time"]
-            ):  # 2 min
-                await self.send_overflow_warning()
-            elif charge_amount >= self.config["PROC_SETTINGS"][
-                "high_charge_percent"
-            ] and self.reminder_time_passed("high", pause_time):
-                await self.send_removal_warning()
+                if charge_amount >= self.config["PROC_SETTINGS"][
+                    "overflow_percent"
+                ] and self.reminder_time_passed(
+                    "overflow",
+                    self.config["PROC_SETTINGS"]["remind_overflow_charge_time"],
+                ):  # 2 min
+                    await self.send_overflow_warning()
+                elif charge_amount >= self.config["PROC_SETTINGS"][
+                    "high_charge_percent"
+                ] and self.reminder_time_passed("high", pause_time):
+                    await self.send_removal_warning()
 
-        elif self.current_charger_state == "Discharging":
-            charge_amount = self.battery.percent.value
-            pause_time = self.config["PROC_SETTINGS"]["remind_low_charge_time"]
+            elif self.current_charger_state == "Discharging":
+                charge_amount = self.battery.percent.value
+                pause_time = self.config["PROC_SETTINGS"]["remind_low_charge_time"]
 
-            if charge_amount <= self.config["PROC_SETTINGS"][
-                "low_charge_percent"
-            ] and self.reminder_time_passed("min", pause_time):
-                await self.send_charge_reminder()
+                if charge_amount <= self.config["PROC_SETTINGS"][
+                    "low_charge_percent"
+                ] and self.reminder_time_passed("min", pause_time):
+                    await self.send_charge_reminder()
 
-        if len(self.notifications) > 5:
-            await self.notifier.clear(self.notifications[0])
-            self.notifications.pop(0)
+            if len(self.notifications) > 5:
+                await self.notifier.clear(self.notifications[0])
+                self.notifications.pop(0)
+        except Exception as e:
+            logger.exception("Error in battery update process")
+            raise
 
     async def clear_all_messages(self):
+        logger.info("Clearing all notifications")
         await self.notifier.clear_all()
+        self.notifications.clear()
+        logger.debug("All notifications cleared")
 
     def update_config(self, config: AppConfig):
+        logger.info("Updating background process configuration")
         print("CONFIG UPDATED")
         self.config = config
+        logger.debug("Configuration updated successfully")
 
 
-def clear_all_messages():
-    app = BackgroundProcessManager()
-    asyncio.run(app.clear_all_messages())
+async def clear_all_messages():
+    try:
+        logger.info("Clearing all messages")
+        app = BackgroundProcessManager()
+        await app.clear_all_messages()
+        logger.debug("All messages cleared successfully")
+    except Exception as e:
+        logger.exception("Error clearing messages")
+        raise
 
 
-atexit.register(clear_all_messages)
+atexit.register(lambda: asyncio.run(clear_all_messages()))
 
 stop_background_process_flag = threading.Event()
 
 
 async def main():
-    """
-    The main asynchronous routine for your background process.
-    It coordinates the background tasks and checks for shutdown signals.
-    """
-    app = BackgroundProcessManager()
+    try:
+        logger.info("Starting background process main loop")
+        app = BackgroundProcessManager()
 
-    await app.send_welcome_message()
+        await app.send_welcome_message()
 
-    while not stop_background_process_flag.is_set():
-        await app.update()
+        while not stop_background_process_flag.is_set():
+            try:
+                await app.update()
+                await asyncio.sleep(1)
+            except Exception as e:
+                logger.exception("Error in main loop iteration")
+                await asyncio.sleep(5)  # Wait a bit longer after an error
 
-        # Asynchronously wait for 1 second, but allow interruption if the
-        # stop flag is set. This is crucial for graceful shutdown.
-        try:
-            # asyncio.wait_for will raise TimeoutError if event doesn't get set
-            # within 1 second. This allows the loop to continue.
-            # If the event IS set, it will complete immediately and raise.
-            # We specifically want to break if the flag is set.
-            await asyncio.wait_for(
-                asyncio.create_task(
-                    asyncio.to_thread(
-                        stop_background_process_flag.wait
-                    )  # Run blocking wait in a thread pool
-                ),
-                timeout=1.0,
-            )
-
-            # If the above line completes without timeout, it means the flag was set, so break
-            # ie -> THE PROGRAM WAS TERMINATED
-            break
-
-        except asyncio.TimeoutError:
-            # The flag was not set within the timeout, so continue the loop
-            pass
-        except Exception as e:
-            # Catch other potential errors during shutdown handling
-            print(f"Error during async shutdown check: {e}")
-            break  # Exit loop on error
-
-    print("Background process: Signaled to stop and exiting async loop.")
+        logger.info("Background process stopping...")
+        await clear_all_messages()
+        logger.info("Background process stopped successfully")
+    except Exception as e:
+        logger.exception("Fatal error in background process")
+        raise
 
 
 def run_background_process():
-    """
-    This function is executed in a dedicated background thread.
-    It's responsible for creating and running the asyncio event loop
-    for the `proc` coroutine.
-    """
-    print("Background process thread: Starting asyncio loop for 'proc'...")
     try:
-        # asyncio.run() creates a new event loop for the current thread,
-        # runs the coroutine, and then closes the loop.
+        logger.info("Starting background process thread")
         asyncio.run(main())
-    except RuntimeError as e:
-        # This can sometimes happen if the event loop is already shutting down
-        # or closed during cleanup. We'll catch specific errors if needed.
-        if "Event loop is closed" not in str(e):
-            raise  # Re-raise if it's not the expected shutdown error
     except Exception as e:
-        print(f"Background process thread encountered an unexpected error: {e}")
-    finally:
-        print("Background process thread: Asyncio loop has stopped.")
+        logger.exception("Fatal error in background process thread")
+        raise

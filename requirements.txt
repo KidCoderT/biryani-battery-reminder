@@ -3,6 +3,7 @@
 batteryinfo==0.1.5
 bidict==0.23.1
 desktop-notifier==6.1.1
+loguru==0.7.2
 nodeenv==1.9.1
 packaging==25.0
 pyrefly==0.17.1
