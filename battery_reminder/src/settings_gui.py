@@ -47,7 +47,14 @@ class AppSettingUI:
         "voltage": "Current battery voltage (V).",
     }
 
-    def __init__(self, main_window: ttk.Window) -> None:
+    def __init__(
+        self,
+        main_window: ttk.Window,
+        stop_proc=lambda: print("stop proc"),
+        start_proc=lambda: print("start proc"),
+        check_bg_proc_stat=lambda: True,
+        hide_gui_on_close=True,
+    ) -> None:
         """Initialize the application UI.
 
         Args:
@@ -56,12 +63,18 @@ class AppSettingUI:
         self.master = main_window
         self.master.title("Biryani (Battery Reminder)")
         self.saved_data = load_config()
+        self.stop_proc = stop_proc
+        self.start_proc = start_proc
+        self.check_bg_proc_stat = check_bg_proc_stat
         self._setup_window()
         self._initialize_theme()
         self._create_main_layout()
         self._create_header()
         self._create_notebook()
-        self.master.protocol("WM_DELETE_WINDOW", self.on_closing)  # Handle close button
+        if hide_gui_on_close:
+            self.master.protocol(
+                "WM_DELETE_WINDOW", self.on_closing
+            )  # Handle close button
 
         # Initialize button states
         self.reset_button.configure(state="disabled")
@@ -172,15 +185,22 @@ class AppSettingUI:
 
         self.notebook = ttk.Notebook(self.main_frame, style="custom.TNotebook")
 
+        size = 20
+
         # App Settings Tab
         self.app_settings_tab = ttk.Frame(self.notebook)
         self.create_app_settings_widgets(self.app_settings_tab)
-        self.notebook.add(self.app_settings_tab, text="App Settings".center(60))
+        self.notebook.add(self.app_settings_tab, text="App Settings".center(size))
 
         # Battery Health Tab
         self.battery_health_tab = ttk.Frame(self.notebook, padding=(20, 20))
         self.create_battery_health_widgets(self.battery_health_tab)
-        self.notebook.add(self.battery_health_tab, text="Battery Health".center(60))
+        self.notebook.add(self.battery_health_tab, text="Battery Health".center(size))
+
+        # App Status Tab
+        self.app_status_tab = ttk.Frame(self.notebook, padding=(20, 20))
+        self.create_status_widgets(self.app_status_tab)
+        self.notebook.add(self.app_status_tab, text="App Status".center(size))
 
         self.notebook.pack(fill="both", expand=True)
 
@@ -1185,11 +1205,152 @@ class AppSettingUI:
         # Schedule next update
         self.master.after(1000, self._reload_data)
 
+    def create_status_widgets(self, frame: ttk.Frame) -> None:
+        """Create app status widgets.
 
-def main():
+        Args:
+            frame: The parent frame for the app status widgets
+        """
+        # Main content frame for consistent padding
+        content_frame = ttk.Frame(frame)
+        content_frame.pack(fill="both", padx=30, pady=20, expand=YES)
+
+        # Status Frame
+        status_frame = ttk.Frame(content_frame)
+        status_frame.pack(fill="none", pady=(0, 20), anchor="center")
+
+        # Status Label
+        status_label = ttk.Label(
+            status_frame,
+            text="Current App Status:",
+            font=("Arial", 10, "bold"),
+        )
+        status_label.pack(side=LEFT, padx=(0, 10))
+
+        # Status Value Label
+        self.status_value_label = ttk.Label(
+            status_frame,
+            text="STOPPED",
+            font=("Arial", 10, "bold"),
+            foreground="red",
+        )
+        self.status_value_label.pack(side=LEFT)
+
+        # Buttons Frame
+        buttons_frame = ttk.Frame(content_frame)
+        buttons_frame.pack(fill="none", pady=(0, 20), anchor="center")
+
+        # Start Button
+        self.start_button = ttk.Button(
+            buttons_frame,
+            text="Start App",
+            command=self._start_app,
+            style="success.TButton",
+            width=15,
+        )
+        self.start_button.pack(side=LEFT, padx=(0, 10))
+        ToolTip(
+            self.start_button, "Start the battery monitoring service", bootstyle="info"
+        )
+
+        # Stop Button
+        self.stop_button = ttk.Button(
+            buttons_frame,
+            text="Stop App",
+            command=self._stop_app,
+            style="danger.TButton",
+            width=15,
+            state="disabled",
+        )
+        self.stop_button.pack(side=LEFT)
+        ToolTip(
+            self.stop_button, "Stop the battery monitoring service", bootstyle="info"
+        )
+
+        # Bug Report Frame
+        bug_report_frame = ttk.Frame(content_frame)
+        bug_report_frame.pack(fill="none", anchor="center")
+
+        # Bug Report Button
+        self.bug_report_button = ttk.Button(
+            bug_report_frame,
+            text="Report Bug/Issue",
+            command=self._report_bug,
+            style="info.TButton",
+            width=20,
+        )
+        self.bug_report_button.pack(side=LEFT)
+        ToolTip(
+            self.bug_report_button,
+            "Report any bugs or issues you encounter",
+            bootstyle="info",
+        )
+
+        # Initialize app status
+        self._update_app_status()
+
+    def _update_app_status(self) -> None:
+        """Update the app status display and button states."""
+        is_running = self.check_bg_proc_stat()
+
+        # Update status label
+        self.status_value_label.configure(
+            text="RUNNING" if is_running else "STOPPED",
+            foreground="green" if is_running else "red",
+        )
+
+        # Update button states
+        self.start_button.configure(state="disabled" if is_running else "normal")
+        self.stop_button.configure(state="normal" if is_running else "disabled")
+
+    def _start_app(self) -> None:
+        """Start the battery monitoring service."""
+        try:
+            self.start_proc()
+            self._update_app_status()
+            Messagebox.ok(
+                title="Success",
+                message="Battery monitoring service has been started.",
+                parent=self.master,
+            )
+        except Exception as e:
+            Messagebox.show_error(
+                title="Error",
+                message=f"Failed to start the service: {str(e)}",
+                parent=self.master,
+            )
+
+    def _stop_app(self) -> None:
+        """Stop the battery monitoring service."""
+        try:
+            self.stop_proc()
+            self._update_app_status()
+            Messagebox.ok(
+                title="Success",
+                message="Battery monitoring service has been stopped.",
+                parent=self.master,
+            )
+        except Exception as e:
+            Messagebox.show_error(
+                title="Error",
+                message=f"Failed to stop the service: {str(e)}",
+                parent=self.master,
+            )
+
+    def _report_bug(self) -> None:
+        """Open the bug report dialog."""
+        # TODO: Implement bug reporting functionality
+        Messagebox.show_info(
+            title="Bug Report",
+            message="Bug reporting functionality will be implemented in a future update.",
+            parent=self.master,
+        )
+
+
+def main(debug=False):
     """Main entry point for the application."""
     root = ttk.Window(
         title="Biryani (Battery Reminder)", themename="litera", size=(650, 550)
     )
-    app = AppSettingUI(root)
+    app = AppSettingUI(root, hide_gui_on_close=not debug)
     root.mainloop()

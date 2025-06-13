@@ -2,9 +2,7 @@
 name = "battery-reminder"
 version = "0.1.0"
 description = "Battery Reminder. Reminds when the battery charge is 100% or too low with a fun notification and ui."
-authors = [
-    {name = "Tejas",email = "tejas.sunil.75o25@gmail.com"}
-]
+authors = [{ name = "Tejas", email = "tejas.sunil.75o25@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -13,11 +11,11 @@ dependencies = [
     "pystray (>=0.19.5,<0.20.0)",
     "ttkbootstrap (>=1.13.10,<2.0.0)",
     "pillow (>=10,<11)",
-    "rich (>=14.0.0,<15.0.0)"
+    "rich (>=14.0.0,<15.0.0)",
 ]
 
 [tool.poetry]
-packages = [{include = "battery_reminder"}]
+packages = [{ include = "battery_reminder" }]
 include = ["emojis/**.png"]
 
 [tool.poetry.group.dev.dependencies]

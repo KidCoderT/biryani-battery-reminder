@@ -29,7 +29,16 @@ class App:
         # Initialize the main window but keep it hidden
         self.gui_window = ttk.Window()
         self.gui_window.withdraw()
-        self.settings_app_instance = AppSettingUI(self.gui_window)
+        self.check_bg_running = (
+            lambda: not stop_background_process_flag.is_set()
+            and self.background_thread is not None
+        )
+        self.settings_app_instance = AppSettingUI(
+            self.gui_window,
+            self.stop_background_process,
+            self.start_background_process,
+            self.check_bg_running,
+        )
 
         if self.config["PROC_SETTINGS"]["run_on_startup"]:
             self.start_background_process()

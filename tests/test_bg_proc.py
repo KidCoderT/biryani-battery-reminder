@@ -1,18 +1,14 @@
 import asyncio
+from battery_reminder.src.background_proc import BackgroundProcessManager
 from typing import Literal
-from batteryinfo import Battery, TimeFormat
-
+from batteryinfo import Battery
 from concurrent.futures import ThreadPoolExecutor
-
 from rich.progress import (
     BarColumn,
-    DownloadColumn,
     Progress,
     TextColumn,
 )
-
 from rich import print
-from .background_proc import BackgroundProcessManager
 
 
 class _Battery:
@@ -32,9 +28,9 @@ class _Battery:
         def __str__(self):
             return f"{self.value}{self.unit}"
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         # We still initialize the real Battery object if you need its other properties
-        self.battery = Battery(time_format=TimeFormat.Human)
+        self.battery = Battery(*args, **kwargs)
         # This will be our controlled percentage for testing
         self._test_percentage = 0.0
         # This will store the state (Charging/Discharging) for testing
@@ -87,7 +83,7 @@ async def test_proc(app: BackgroundProcessManager):
         raise
 
 
-def main():
+async def main():
     app = BackgroundProcessManager(_class=_Battery)
     loop = asyncio.get_running_loop()
 
@@ -120,12 +116,15 @@ def main():
                     elif next_input == "d":
                         app.battery.set_test_state("Discharging")
                         continue
-                    if not next_input.isdigit() and next_input != "":
+
+                    try:
+                        advance = int(next_input) if next_input else 1
+                        progress.update(task, advance=advance)
+                        i += advance
+                        app.battery.set_test_percentage(i)
+                    except TypeError:
                         continue
-                    advance = int(next_input) if next_input else 1
-                    progress.update(task, advance=advance)
-                    i += advance
-                    app.battery.set_test_percentage(i)
+
                 except KeyboardInterrupt:
                     print("\nOperation cancelled by user")
                     break
@@ -137,3 +136,7 @@ def main():
         proc_task.cancel()
         background_loop.call_soon_threadsafe(background_loop.stop)
         executor.shutdown(wait=False)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
