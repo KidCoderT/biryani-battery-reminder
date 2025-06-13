@@ -1,205 +1,96 @@
 import sys
 import os
 import platform
+import ctypes
 import shutil
 from pathlib import Path
-from .logger_config import setup_logger
+from battery_reminder.src.logger_config import setup_logger
 
 # Initialize logger
 logger = setup_logger()
 
 
-def get_app_path():
-    """Get the path to the application executable or script."""
+startup_folder = os.path.join(
+    os.environ["APPDATA"], r"Microsoft\Windows\Start Menu\Programs\Startup"
+)
+
+
+def is_admin():
+    """Check if the script is running with admin privileges."""
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+
+def run_as_admin():
+    """Relaunch the script with admin rights."""
     if getattr(sys, "frozen", False):
-        # If running as a PyInstaller bundle
+        # PyInstaller .exe
+        exe = sys.executable
+    else:
+        exe = sys.argv[0]
+    params = " ".join([f'"{arg}"' for arg in sys.argv[1:]])
+    ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, params, None, 1)
+
+
+def get_exe_path():
+    # Get the path to the current executable (works for PyInstaller --onefile or --onedir)
+    if getattr(sys, "frozen", False):
         return sys.executable
     else:
-        # If running as a script, get the main.py path and use python interpreter
-        return f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}"'
+        return os.path.abspath(sys.argv[0])
 
 
-def add_to_startup(app_name):
+def get_shortcut_path(shortcut_name=None):
+    # Name of the shortcut (default: exe name)
+    if shortcut_name is None:
+        shortcut_name = os.path.splitext(os.path.basename(get_exe_path()))[0]
+    return os.path.join(startup_folder, f"{shortcut_name}.lnk")
+
+
+def create_shortcut(shortcut_path, target_path, icon_path=None):
+    import pythoncom
+    from win32com.shell import shell
+    from win32com.shell import shellcon
+    from win32com.client import Dispatch
+
+    shell = Dispatch("WScript.Shell")
+    shortcut = shell.CreateShortCut(shortcut_path)
+    shortcut.Targetpath = target_path
+    shortcut.WorkingDirectory = os.path.dirname(target_path)
+    if icon_path:
+        shortcut.IconLocation = icon_path
+    shortcut.save()
+
+
+def add_to_startup(shortcut_name=None, icon_path=None):
     """Add the application to system startup."""
-    try:
-        if platform.system() == "Windows":
-            _add_to_windows_startup(app_name)
-        elif platform.system() == "Linux":
-            _add_to_linux_startup(app_name)
-        elif platform.system() == "Darwin":  # macOS
-            _add_to_macos_startup(app_name)
-        else:
-            logger.warning(
-                f"Startup management not implemented for {platform.system()}"
-            )
-            return False
-        return True
-    except Exception as e:
-        logger.error(f"Failed to add to startup: {e}")
-        return False
+    if not is_admin():
+        print("Requesting admin privileges to add to startup...")
+        run_as_admin()
+        sys.exit(0)
+    shortcut_path = get_shortcut_path(shortcut_name)
+    exe_path = get_exe_path()
+    create_shortcut(shortcut_path, exe_path, icon_path)
+    logger.info("Added to startup.")
+
+    return True
 
 
-def remove_from_startup(app_name):
-    """Remove the application from system startup."""
-    try:
-        if platform.system() == "Windows":
-            _remove_from_windows_startup(app_name)
-        elif platform.system() == "Linux":
-            _remove_from_linux_startup(app_name)
-        elif platform.system() == "Darwin":  # macOS
-            _remove_from_macos_startup(app_name)
-        else:
-            logger.warning(
-                f"Startup management not implemented for {platform.system()}"
-            )
-            return False
-        return True
-    except Exception as e:
-        logger.error(f"Failed to remove from startup: {e}")
-        return False
+def is_in_startup(shortcut_name=None):
+    shortcut_path = get_shortcut_path(shortcut_name)
+    return os.path.exists(shortcut_path)
 
 
-def _add_to_windows_startup(app_name):
-    """Add application to Windows startup registry."""
-    try:
-        import winreg
+def remove_from_startup(shortcut_name=None):
+    if not is_admin():
+        print("Requesting admin privileges to remove from startup...")
+        run_as_admin()
+        sys.exit(0)
+    shortcut_path = get_shortcut_path(shortcut_name)
+    if os.path.exists(shortcut_path):
+        os.remove(shortcut_path)
+        logger.info("Removed from startup.")
 
-        key = winreg.HKEY_CURRENT_USER
-        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
-        app_path = get_app_path()
-
-        with winreg.OpenKey(key, key_path, 0, winreg.KEY_SET_VALUE) as reg_key:
-            winreg.SetValueEx(reg_key, app_name, 0, winreg.REG_SZ, app_path)
-        logger.info(f"Added '{app_name}' to Windows startup")
-    except Exception as e:
-        logger.error(f"Error adding to Windows startup: {e}")
-        raise
-
-
-def _remove_from_windows_startup(app_name):
-    """Remove application from Windows startup registry."""
-    try:
-        import winreg
-
-        key = winreg.HKEY_CURRENT_USER
-        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
-
-        with winreg.OpenKey(key, key_path, 0, winreg.KEY_SET_VALUE) as reg_key:
-            try:
-                winreg.DeleteValue(reg_key, app_name)
-                logger.info(f"Removed '{app_name}' from Windows startup")
-            except FileNotFoundError:
-                logger.info(f"'{app_name}' not found in Windows startup")
-    except Exception as e:
-        logger.error(f"Error removing from Windows startup: {e}")
-        raise
-
-
-def _add_to_linux_startup(app_name):
-    """Add application to Linux startup."""
-    try:
-        app_path = get_app_path()
-
-        # Try different autostart directories based on desktop environment
-        autostart_dirs = [
-            os.path.expanduser("~/.config/autostart"),  # GNOME, KDE, XFCE
-            os.path.expanduser("~/.local/share/applications"),  # Some distributions
-        ]
-
-        desktop_entry = f"""[Desktop Entry]
-Type=Application
-Name={app_name}
-Exec={app_path}
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-Terminal=false
-"""
-
-        # Try each autostart directory
-        for autostart_dir in autostart_dirs:
-            try:
-                os.makedirs(autostart_dir, exist_ok=True)
-                desktop_file = os.path.join(autostart_dir, f"{app_name}.desktop")
-                with open(desktop_file, "w") as f:
-                    f.write(desktop_entry)
-                os.chmod(desktop_file, 0o755)
-                logger.info(f"Added '{app_name}' to Linux startup in {autostart_dir}")
-                return
-            except Exception as e:
-                logger.warning(f"Failed to add to {autostart_dir}: {e}")
-                continue
-
-        raise Exception("Failed to add to any autostart directory")
-    except Exception as e:
-        logger.error(f"Error adding to Linux startup: {e}")
-        raise
-
-
-def _remove_from_linux_startup(app_name):
-    """Remove application from Linux startup."""
-    try:
-        # Check all possible autostart directories
-        autostart_dirs = [
-            os.path.expanduser("~/.config/autostart"),
-            os.path.expanduser("~/.local/share/applications"),
-        ]
-
-        removed = False
-        for autostart_dir in autostart_dirs:
-            desktop_file = os.path.join(autostart_dir, f"{app_name}.desktop")
-            if os.path.exists(desktop_file):
-                os.remove(desktop_file)
-                logger.info(f"Removed '{app_name}' from {autostart_dir}")
-                removed = True
-
-        if not removed:
-            logger.info(f"'{app_name}' not found in any Linux startup location")
-    except Exception as e:
-        logger.error(f"Error removing from Linux startup: {e}")
-        raise
-
-
-def _add_to_macos_startup(app_name):
-    """Add application to macOS startup."""
-    try:
-        app_path = get_app_path()
-        plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>{app_name}</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>{app_path}</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>
-"""
-        plist_dir = os.path.expanduser("~/Library/LaunchAgents")
-        os.makedirs(plist_dir, exist_ok=True)
-        plist_file = os.path.join(plist_dir, f"{app_name}.plist")
-
-        with open(plist_file, "w") as f:
-            f.write(plist_content)
-        logger.info(f"Added '{app_name}' to macOS startup")
-    except Exception as e:
-        logger.error(f"Error adding to macOS startup: {e}")
-        raise
-
-
-def _remove_from_macos_startup(app_name):
-    """Remove application from macOS startup."""
-    try:
-        plist_file = os.path.expanduser(f"~/Library/LaunchAgents/{app_name}.plist")
-        if os.path.exists(plist_file):
-            os.remove(plist_file)
-            logger.info(f"Removed '{app_name}' from macOS startup")
-        else:
-            logger.info(f"'{app_name}' not found in macOS startup")
-    except Exception as e:
-        logger.error(f"Error removing from macOS startup: {e}")
-        raise
+    return True

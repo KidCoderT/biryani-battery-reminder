@@ -11,12 +11,19 @@ import platform
 import socket
 import tempfile
 
-from .src.settings_gui import AppSettingUI
-from .src.config import load_config, get_app_name
-from .src.assets_manager import app_icon
-from .src.background_proc import run_background_process, stop_background_process_flag
-from .src.startup_manager import add_to_startup, remove_from_startup
-from .src.logger_config import setup_logger
+from battery_reminder.src.settings_gui import AppSettingUI
+from battery_reminder.src.config import load_config, get_app_name
+from battery_reminder.src.assets_manager import app_icon
+from battery_reminder.src.background_proc import (
+    run_background_process,
+    stop_background_process_flag,
+)
+from battery_reminder.src.startup_manager import (
+    add_to_startup,
+    remove_from_startup,
+    is_in_startup,
+)
+from battery_reminder.src.logger_config import setup_logger
 
 # Initialize logger
 logger = setup_logger()
@@ -197,9 +204,9 @@ class App:
 
     def update_startup_setting(self, run_on_startup):
         if run_on_startup:
-            add_to_startup(self.app_name)
+            add_to_startup()
         else:
-            remove_from_startup(self.app_name)
+            remove_from_startup()
 
         logger.info(f"Startup setting updated: {run_on_startup}")
 
@@ -216,6 +223,11 @@ def main():
 
         logger.info("Starting application...")
         app_instance = App()
+
+        if app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
+            if not is_in_startup():
+                add_to_startup()
+                logger.info("Startup setting updated: True")
 
         if not app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
             logger.info("Opening settings on manual launch")

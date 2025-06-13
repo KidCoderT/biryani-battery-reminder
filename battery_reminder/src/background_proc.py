@@ -5,10 +5,15 @@ from pathlib import Path
 from typing import Literal
 from batteryinfo import Battery, TimeFormat
 from desktop_notifier import DesktopNotifier, Icon, Urgency
-from .config import DEFAULT_CONFIG_DATA, AppConfig, get_app_name, load_config
-from .assets_manager import get_emoji
-from .utils import SingletonMeta
-from .logger_config import setup_logger
+from battery_reminder.src.config import (
+    DEFAULT_CONFIG_DATA,
+    AppConfig,
+    get_app_name,
+    load_config,
+)
+from battery_reminder.src.assets_manager import get_emoji
+from battery_reminder.src.utils import SingletonMeta
+from battery_reminder.src.logger_config import setup_logger
 
 import threading
 

@@ -1,9 +1,24 @@
+import sys
 import random
 from pathlib import Path
 from PIL import Image
 import typing
 
-ASSETS_FOLDER = Path("./assets").absolute()
+if getattr(sys, "frozen", False):
+    # If running as a PyInstaller bundle, assets are unpacked into sys._MEIPASS
+    # and we added them to a folder named 'assets' within that bundle's root.
+    ASSETS_FOLDER = Path(sys._MEIPASS) / "assets"
+else:
+    # If running as a script (e.g., via `python -m battery_reminder`)
+    # `__file__` refers to the current script (assets_manager.py).
+    # Its path is: battery-reminder/battery_reminder/assets_manager.py
+    # We need to go up two levels to the project root (battery-reminder/)
+    # and then down into the 'assets' folder.
+    current_script_dir = Path(__file__).parent  # battery-reminder/battery_reminder
+    project_root_dir = current_script_dir.parent.parent  # battery-reminder/
+    ASSETS_FOLDER = project_root_dir / "assets"
+
+ASSETS_FOLDER = ASSETS_FOLDER.absolute()
 assert ASSETS_FOLDER.exists()
 
 

@@ -5,13 +5,15 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Literal, TypedDict
 
-from .logger_config import setup_logger
+from battery_reminder.src.logger_config import setup_logger
 
 # Initialize logger
 logger = setup_logger()
 
 APP_NAME = "biryani-battery-reminder"
-CONFIG_FILE_NAME = f"{APP_NAME.lower().replace('-', '_').replace(' ', '_')}_config.json"
+CONFIG_FILE_NAME = (
+    f"{APP_NAME.split('-')[0].lower().replace('-', '_').replace(' ', '_')}_config.json"
+)
 
 """
 Expected structure for the config.json file:
@@ -67,7 +69,7 @@ class AppConfig(TypedDict):
 
 DEFAULT_CONFIG_DATA: AppConfig = {
     "PROC_SETTINGS": {
-        "run_on_startup": True,
+        "run_on_startup": False,
         "alert_when_charger_plugged": True,
         "alert_when_charger_removed": True,
         "low_charge_percent": 10,

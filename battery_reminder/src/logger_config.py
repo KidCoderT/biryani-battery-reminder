@@ -12,12 +12,13 @@ def setup_logger():
     logger.remove()
 
     # Add console logger with colors - minimal info for privacy
-    logger.add(
-        sys.stderr,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
-        level="INFO",
-        colorize=True,
-    )
+    if not getattr(sys, "frozen", False):
+        logger.add(
+            sys.stderr,
+            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
+            level="INFO",
+            colorize=True,
+        )
 
     # Add file logger with rotation - detailed for debugging
     logger.add(

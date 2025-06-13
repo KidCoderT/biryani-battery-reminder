@@ -950,7 +950,7 @@ class AppSettingUI:
         if self.saved_data["PROC_SETTINGS"]["run_on_startup"] != old_startup_setting:
             try:
                 if self.saved_data["PROC_SETTINGS"]["run_on_startup"]:
-                    success = add_to_startup(get_app_name())
+                    success = add_to_startup()
                     if not success:
                         Messagebox.show_warning(
                             title="Startup Setting Failed",
@@ -958,7 +958,7 @@ class AppSettingUI:
                             parent=self.master,
                         )
                 else:
-                    success = remove_from_startup(get_app_name())
+                    success = remove_from_startup()
                     if not success:
                         Messagebox.show_warning(
                             title="Startup Setting Failed",
