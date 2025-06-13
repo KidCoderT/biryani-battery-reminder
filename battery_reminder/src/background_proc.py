@@ -222,7 +222,6 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
             logger.debug(f"Reset timer for event: {event_name}")
             return False
 
-        # print(f"checking {event_name}")
         if event_name not in self.timers:
             self.timers[event_name] = time.time()
             logger.debug(f"Initialized timer for event: {event_name}")
@@ -297,7 +296,6 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
 
     def update_config(self, config: AppConfig):
         logger.info("Updating background process configuration")
-        print("CONFIG UPDATED")
         self.config = config
         logger.debug("Configuration updated successfully")
 

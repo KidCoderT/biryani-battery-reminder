@@ -1,21 +1,24 @@
 import tkinter as tk
-from typing import Literal, Dict, Any
+from typing import Any, Dict, Literal
+
 import ttkbootstrap as ttk
 from ttkbootstrap import style
 from ttkbootstrap.constants import *
-from ttkbootstrap.tooltip import ToolTip
+from ttkbootstrap.dialogs import Messagebox
 from ttkbootstrap.icons import Emoji
 from ttkbootstrap.scrolled import ScrolledFrame
-from ttkbootstrap.dialogs import Messagebox
+from ttkbootstrap.tooltip import ToolTip
 
 from battery_reminder.src.background_proc import BackgroundProcessManager
 from battery_reminder.src.config import (
     AppConfig,
-    save_config,
+    get_app_name,
     get_default_config,
     load_config,
+    save_config,
 )
 from battery_reminder.src.logger_config import setup_logger
+from battery_reminder.src.startup_manager import add_to_startup, remove_from_startup
 
 # Initialize logger
 logger = setup_logger()
@@ -57,6 +60,7 @@ class AppSettingUI:
         stop_proc=lambda: print("stop proc"),
         start_proc=lambda: print("start proc"),
         check_bg_proc_stat=lambda: True,
+        update_startup_setting=lambda x: print(f"change to: {x}"),
         hide_gui_on_close=True,
     ) -> None:
         """Initialize the application UI.
@@ -68,9 +72,12 @@ class AppSettingUI:
         self.master = main_window
         self.master.title("Biryani (Battery Reminder)")
         self.saved_data = load_config()
-        self.stop_proc = stop_proc
-        self.start_proc = start_proc
+
         self.check_bg_proc_stat = check_bg_proc_stat
+        self.start_proc = start_proc
+        self.stop_proc = stop_proc
+        self.update_startup_setting = update_startup_setting
+
         self._setup_window()
         self._initialize_theme()
         self._create_main_layout()
@@ -276,9 +283,7 @@ class AppSettingUI:
         # Run on Startup inside General Settings
         run_on_startup_label = ttk.Label(general_labelframe, text="Run on Startup:")
         run_on_startup_label.grid(row=0, column=0, sticky=W, padx=10, pady=(5, 15))
-        self.run_on_startup_var = tk.BooleanVar(
-            value=False
-        )  # TODO: UPDATE STARTUP SETTING ON SAVE
+        self.run_on_startup_var = tk.BooleanVar(value=False)
         self.run_on_startup_var.trace_add("write", on_variable_change)
         run_on_startup_check = ttk.Checkbutton(
             general_labelframe,
@@ -927,6 +932,7 @@ class AppSettingUI:
     def save_settings(self):
         """Save the current settings and update the saved data."""
         logger.info("Saving settings...")
+        old_startup_setting = self.saved_data["PROC_SETTINGS"]["run_on_startup"]
         current_data = self.get_current_settings()
 
         # Save the data
@@ -937,6 +943,33 @@ class AppSettingUI:
 
         # Update the config for the background process
         BackgroundProcessManager().update_config(current_data)
+
+        # Handle startup setting changes
+        if self.saved_data["PROC_SETTINGS"]["run_on_startup"] != old_startup_setting:
+            try:
+                if self.saved_data["PROC_SETTINGS"]["run_on_startup"]:
+                    success = add_to_startup(get_app_name())
+                    if not success:
+                        Messagebox.show_warning(
+                            title="Startup Setting Failed",
+                            message="Failed to add the app to startup. Please try running the app as administrator.",
+                            parent=self.master,
+                        )
+                else:
+                    success = remove_from_startup(get_app_name())
+                    if not success:
+                        Messagebox.show_warning(
+                            title="Startup Setting Failed",
+                            message="Failed to remove the app from startup. Please try running the app as administrator.",
+                            parent=self.master,
+                        )
+            except Exception as e:
+                logger.error(f"Error updating startup setting: {e}")
+                Messagebox.show_error(
+                    title="Startup Setting Error",
+                    message=f"An error occurred while updating startup settings: {str(e)}",
+                    parent=self.master,
+                )
 
         # Show notification using Messagebox
         Messagebox.ok(

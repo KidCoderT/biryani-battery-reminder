@@ -1,7 +1,7 @@
 [project]
-name = "battery-reminder"
+name = "birayni-battery-reminder"
 version = "0.1.0"
-description = "Battery Reminder. Reminds when the battery charge is 100% or too low with a fun notification and ui."
+description = "Birayni - The Battery Reminder App. Reminds when the battery charge is 100% or too low with a fun notification and ui."
 authors = [{ name = "Tejas", email = "tejas.sunil.75o25@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.13,<4.0"
@@ -14,6 +14,9 @@ dependencies = [
     "rich (>=14.0.0,<15.0.0)",
     "loguru (>=0.7.3,<0.8.0)",
 ]
+
+[project.optional-dependencies]
+windows = ["pywin32 (>=310,<311)"]
 
 [tool.poetry]
 packages = [{ include = "battery_reminder" }]

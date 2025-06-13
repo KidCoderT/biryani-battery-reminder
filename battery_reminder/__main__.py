@@ -4,9 +4,12 @@ import threading
 import asyncio
 from pathlib import Path
 import ttkbootstrap as ttk
-from tkinter import Toplevel
+from tkinter import Toplevel, messagebox
 from pystray import Icon, Menu, MenuItem
 import os
+import platform
+import socket
+import tempfile
 
 from .src.settings_gui import AppSettingUI
 from .src.config import load_config, get_app_name
@@ -17,6 +20,57 @@ from .src.logger_config import setup_logger
 
 # Initialize logger
 logger = setup_logger()
+
+
+def is_already_running():
+    """Check if another instance of the application is already running."""
+    app_name = get_app_name()
+
+    if platform.system() == "Windows":
+        try:
+            import win32event
+            import win32api
+            import winerror
+            import win32security
+
+            mutex_name = f"Global\\{app_name}"
+            try:
+                mutex = win32event.CreateMutex(None, False, mutex_name)
+                if win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS:
+                    return True
+                return False
+            except Exception as e:
+                logger.error(f"Error checking for existing instance on Windows: {e}")
+                return False
+
+        except ImportError:
+            logger.warning("pywin32 not available, falling back to socket-based check")
+            return check_via_socket(app_name)
+    else:
+        # For Linux and other Unix-like systems
+        return check_via_socket(app_name)
+
+
+def check_via_socket(app_name):
+    """Check for existing instance using a socket lock file."""
+    lock_file = os.path.join(tempfile.gettempdir(), f"{app_name}.lock")
+
+    try:
+        # Try to create and bind to a socket
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.bind(lock_file)
+        return False
+    except socket.error:
+        # Socket already exists, meaning another instance is running
+        return True
+    except Exception as e:
+        logger.error(f"Error checking for existing instance via socket: {e}")
+        return False
+    finally:
+        try:
+            sock.close()
+        except:
+            pass
 
 
 class App:
@@ -42,14 +96,15 @@ class App:
             self.stop_background_process,
             self.start_background_process,
             self.check_bg_running,
+            self.update_startup_setting,
         )
+
+        self.setup_tray_icon()
+        logger.info("Application initialization complete")
 
         if self.config["PROC_SETTINGS"]["run_on_startup"]:
             logger.info("Application configured to run on startup")
             self.start_background_process()
-
-        self.setup_tray_icon()
-        logger.info("Application initialization complete")
 
     def start_background_process(self):
         if self.background_thread is None or not self.background_thread.is_alive():
@@ -60,6 +115,7 @@ class App:
             )
             self.background_thread.start()
             self.tray_icon.icon = app_icon(True)
+            self.tray_icon.menu = self.create_menu()
             logger.info("Background process started successfully")
         else:
             logger.warning(
@@ -75,6 +131,7 @@ class App:
                 logger.error("Background thread did not terminate gracefully")
             self.background_thread = None
             self.tray_icon.icon = app_icon(False)
+            self.tray_icon.menu = self.create_menu()
             logger.info("Background process stopped")
         else:
             logger.info("Background process was not running")
@@ -110,24 +167,53 @@ class App:
         logger.info("Exiting Python process...")
         sys.exit(0)
 
-    def setup_tray_icon(self):
-        logger.info("Setting up system tray icon...")
-        icon_image = app_icon(not stop_background_process_flag.is_set())
-
+    def create_menu(self):
         menu = Menu(
             MenuItem("Open Settings", self.open_settings),
-            MenuItem("Start Background", self.start_background_process, default=True),
-            MenuItem("Stop Background", self.stop_background_process),
+            MenuItem(
+                "Start Background",
+                self.start_background_process,
+                default=True,
+                enabled=not self.check_bg_running(),
+            ),
+            MenuItem(
+                "Stop Background",
+                self.stop_background_process,
+                enabled=self.check_bg_running(),
+            ),
             MenuItem("Quit", self.on_quit_callback),
         )
+        return menu
+
+    def setup_tray_icon(self):
+        logger.info("Setting up system tray icon...")
+        icon_image = app_icon(self.check_bg_running())
+
+        menu = self.create_menu()
 
         self.tray_icon = Icon(self.app_name, icon_image, self.app_name, menu)
         threading.Thread(target=self.tray_icon.run, daemon=True).start()
         logger.info("System tray icon setup complete")
 
+    def update_startup_setting(self, run_on_startup):
+        if run_on_startup:
+            add_to_startup(self.app_name)
+        else:
+            remove_from_startup(self.app_name)
+
+        logger.info(f"Startup setting updated: {run_on_startup}")
+
 
 def main():
     try:
+        if is_already_running():
+            logger.warning("Another instance is already running")
+            messagebox.showwarning(
+                "Application Already Running",
+                f"{get_app_name()} is already running. Please use the existing instance. Check in your System tray",
+            )
+            sys.exit(0)
+
         logger.info("Starting application...")
         app_instance = App()
 

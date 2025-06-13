@@ -1,15 +1,16 @@
-from pathlib import Path
-import sys
-import os
 import json
-from typing import Literal, TypedDict
+import os
+import sys
 from copy import deepcopy
+from pathlib import Path
+from typing import Literal, TypedDict
+
 from .logger_config import setup_logger
 
 # Initialize logger
 logger = setup_logger()
 
-APP_NAME = "battery-reminder"
+APP_NAME = "biryani-battery-reminder"
 CONFIG_FILE_NAME = f"{APP_NAME.lower().replace('-', '_').replace(' ', '_')}_config.json"
 
 """
@@ -92,22 +93,14 @@ def get_app_name():
     return APP_NAME
 
 
-def get_config_path():
-    """
-    Returns the path to the configuration file.
-    On Windows, typically in %APPDATA%.
-    On Linux/macOS, typically in ~/.config or ~/.your_app_name.
-    For simplicity, we'll put it next to the executable for PyInstaller.
-    """
-    if getattr(sys, "frozen", False):
-        # If running as a PyInstaller bundle
-        config_path = os.path.join(os.path.dirname(sys.executable), CONFIG_FILE_NAME)
-    else:
-        # If running as a script make the config outside
-        config_path = Path(os.path.abspath(__file__)).parent.parent / CONFIG_FILE_NAME
+if getattr(sys, "frozen", False):
+    # If running as a PyInstaller bundle
+    config_path = os.path.join(os.path.dirname(sys.executable), CONFIG_FILE_NAME)
+else:
+    # If running as a script make the config outside
+    config_path = Path(os.path.abspath(__file__)).parent.parent / CONFIG_FILE_NAME
 
-    logger.debug(f"Config path: {config_path}")
-    return config_path
+logger.debug(f"Config path: {config_path}")
 
 
 def load_config() -> AppConfig:
@@ -116,7 +109,6 @@ def load_config() -> AppConfig:
     If the file doesn't exist, it creates it with default values.
     Returns the configuration as a dictionary.
     """
-    config_path = get_config_path()
     logger.info(f"Loading config from: {config_path}")
 
     config: AppConfig
@@ -167,7 +159,6 @@ def save_config(config: AppConfig):
     """
     Saves the given configuration dictionary to the JSON file.
     """
-    config_path = get_config_path()
     try:
         with open(config_path, "w") as config_file:
             json.dump(config, config_file, indent=4)
