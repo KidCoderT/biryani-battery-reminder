@@ -283,7 +283,9 @@ class AppSettingUI:
         # Run on Startup inside General Settings
         run_on_startup_label = ttk.Label(general_labelframe, text="Run on Startup:")
         run_on_startup_label.grid(row=0, column=0, sticky=W, padx=10, pady=(5, 15))
-        self.run_on_startup_var = tk.BooleanVar(value=False)
+        self.run_on_startup_var = tk.BooleanVar(
+            value=self.saved_data["PROC_SETTINGS"]["run_on_startup"]
+        )
         self.run_on_startup_var.trace_add("write", on_variable_change)
         run_on_startup_check = ttk.Checkbutton(
             general_labelframe,
