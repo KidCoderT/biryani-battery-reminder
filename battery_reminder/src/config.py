@@ -14,6 +14,7 @@ APP_NAME = "biryani-battery-reminder"
 CONFIG_FILE_NAME = (
     f"{APP_NAME.split('-')[0].lower().replace('-', '_').replace(' ', '_')}_config.json"
 )
+SHORTCUT_NAME = "Biryani Battery Reminder"
 
 """
 Expected structure for the config.json file:

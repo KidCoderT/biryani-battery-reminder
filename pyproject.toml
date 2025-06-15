@@ -13,6 +13,7 @@ dependencies = [
     "pillow (>=10,<11)",
     "rich (>=14.0.0,<15.0.0)",
     "loguru (>=0.7.3,<0.8.0)",
+    "cx-freeze (>=8.3.0,<9.0.0)",
 ]
 
 [project.optional-dependencies]
@@ -31,3 +32,36 @@ pyinstaller = "^6.14.1"
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.cxfreeze]
+
+[[tool.cxfreeze.executables]]
+script = "battery_reminder/__main__.py"
+base = "win32gui"
+icon = "assets/icon.ico"
+shortcut_name = "Biryani Battery Reminder"
+shortcut_dir = "ProgramMenuFolder"
+
+[tool.cxfreeze.build_exe]
+include_files = [
+    ["assets", "assets"],
+]
+includes = [
+    "win32com",
+    "win32com.client",
+    "desktop_notifier",
+    "desktop_notifier.resources",
+    "pythoncom",
+    "loguru",
+    "tkinter",
+    "ttkbootstrap",
+    "ttkbootstrap.utility",
+    "pystray"
+]
+zip_include_packages = [
+    "desktop_notifier"
+]
+zip_includes = [
+    ["C:/Users/tejas_uvx2fi9/AppData/Local/pypoetry/Cache/virtualenvs/birayni-battery-reminder-icdOXxVT-py3.13/Lib/site-packages/desktop_notifier/resources", "desktop_notifier/resources"]
+] 
+

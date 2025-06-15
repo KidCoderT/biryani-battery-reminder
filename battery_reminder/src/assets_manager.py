@@ -1,3 +1,4 @@
+import os
 import sys
 import random
 from pathlib import Path
@@ -5,9 +6,15 @@ from PIL import Image
 import typing
 
 if getattr(sys, "frozen", False):
+    # PyInstaller sets _MEIPASS, cx_Freeze does not
+    base_path = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+else:
+    base_path = os.path.dirname(__file__)
+
+if getattr(sys, "frozen", False):
     # If running as a PyInstaller bundle, assets are unpacked into sys._MEIPASS
     # and we added them to a folder named 'assets' within that bundle's root.
-    ASSETS_FOLDER = Path(sys._MEIPASS) / "assets"
+    ASSETS_FOLDER = Path(base_path) / "assets"
 else:
     # If running as a script (e.g., via `python -m battery_reminder`)
     # `__file__` refers to the current script (assets_manager.py).
