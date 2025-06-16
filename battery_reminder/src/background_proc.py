@@ -45,6 +45,8 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
         self.config = load_config()
         logger.info("Background process manager initialized successfully")
 
+        self.notifications_to_send = []
+
     def get_battery_data(self):
         logger.debug("Fetching battery data")
         return {
@@ -210,7 +212,7 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
             title="Settings Updated!",
             message="The settings has been changed and saved successfuly!",
             icon=Icon(get_emoji("yes")),
-            timeout=NOTIFICATION_TIMEOUT,
+            timeout=0,
         )
 
         self.notifications.append(notification)
@@ -245,6 +247,9 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
             logger.debug(
                 f"Battery state: {self.current_battery_state}, Charger state: {self.current_charger_state}"
             )
+
+            if self.notifications_to_send:
+                await self.notifications_to_send.pop(0)()
 
             if self.battery.state != self.current_charger_state:
                 new_state = self.battery.state
@@ -301,8 +306,23 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
 
     def update_config(self, config: AppConfig):
         logger.info("Updating background process configuration")
+        self.notifications_to_send.append(self.send_updated_settings_message)
         self.config = config
         logger.debug("Configuration updated successfully")
+
+    async def send_process_stopped_message(self):
+        logger.info("Sending stop message")
+
+        notification = await self.notifier.send(
+            title="Background Process Stopped!",
+            message="Be ware I will no longer remind you if you overcharge your battery!",
+            icon=Icon(get_emoji("oh-no")),
+            timeout=0,
+        )
+
+        await asyncio.sleep(1)
+
+        logger.debug("Stop message sent successfully")
 
 
 async def clear_all_messages():
@@ -316,7 +336,7 @@ async def clear_all_messages():
         raise
 
 
-atexit.register(lambda: asyncio.run(clear_all_messages()))
+# atexit.register(lambda: asyncio.run(clear_all_messages()))
 
 stop_background_process_flag = threading.Event()
 
@@ -325,6 +345,7 @@ async def main():
     try:
         logger.info("Starting background process main loop")
         app = BackgroundProcessManager()
+        await clear_all_messages()
 
         await app.send_welcome_message()
 
@@ -337,7 +358,10 @@ async def main():
                 await asyncio.sleep(5)  # Wait a bit longer after an error
 
         logger.info("Background process stopping...")
+
         await clear_all_messages()
+        await app.send_process_stopped_message()
+
         logger.info("Background process stopped successfully")
     except Exception as e:
         logger.exception("Fatal error in background process")

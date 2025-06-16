@@ -21,7 +21,7 @@ Expected structure for the config.json file:
 
 {
     "PROC_SETTINGS": {
-        "run_on_startup": false,
+        "run_on_startup": true,
         "alert_when_charger_plugged": true,
         "alert_when_charger_removed": true,
         "low_charge_percent": 10,
@@ -70,7 +70,7 @@ class AppConfig(TypedDict):
 
 DEFAULT_CONFIG_DATA: AppConfig = {
     "PROC_SETTINGS": {
-        "run_on_startup": False,
+        "run_on_startup": True,
         "alert_when_charger_plugged": True,
         "alert_when_charger_removed": True,
         "low_charge_percent": 10,

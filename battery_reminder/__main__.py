@@ -1,20 +1,16 @@
-import time
-import sys
-import threading
-import asyncio
-from pathlib import Path
-import ttkbootstrap as ttk
-from tkinter import Toplevel, messagebox
-from pystray import Icon, Menu, MenuItem
 import os
-import platform
-import socket
-import tempfile
+import sys
+import asyncio
+import threading
+import ttkbootstrap as ttk
+from tkinter import messagebox
+from pystray import Icon, Menu, MenuItem
 
 from battery_reminder.src.settings_gui import AppSettingUI
 from battery_reminder.src.config import load_config, get_app_name
 from battery_reminder.src.assets_manager import app_icon
 from battery_reminder.src.background_proc import (
+    clear_all_messages,
     run_background_process,
     stop_background_process_flag,
 )
@@ -29,55 +25,25 @@ from battery_reminder.src.logger_config import setup_logger
 logger = setup_logger()
 
 
+def is_frozen():
+    """Check if the application is running as a frozen executable (cx_Freeze)."""
+    return getattr(sys, "frozen", False)  # True if frozen, False otherwise[1][6]
+
+
 def is_already_running():
-    """Check if another instance of the application is already running."""
-    app_name = get_app_name()
+    """Check if another instance of this executable is running."""
+    import psutil  # Requires 'psutil' package
 
-    if platform.system() == "Windows":
+    current_pid = os.getpid()
+    exe_name = os.path.basename(sys.executable if is_frozen() else sys.argv[0])
+    count = 0
+    for proc in psutil.process_iter(["pid", "name"]):
         try:
-            import win32event
-            import win32api
-            import winerror
-            import win32security
-
-            mutex_name = f"Global\\{app_name}"
-            try:
-                mutex = win32event.CreateMutex(None, False, mutex_name)
-                if win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS:
-                    return True
-                return False
-            except Exception as e:
-                logger.error(f"Error checking for existing instance on Windows: {e}")
-                return False
-
-        except ImportError:
-            logger.warning("pywin32 not available, falling back to socket-based check")
-            return check_via_socket(app_name)
-    else:
-        # For Linux and other Unix-like systems
-        return check_via_socket(app_name)
-
-
-def check_via_socket(app_name):
-    """Check for existing instance using a socket lock file."""
-    lock_file = os.path.join(tempfile.gettempdir(), f"{app_name}.lock")
-
-    try:
-        # Try to create and bind to a socket
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.bind(lock_file)
-        return False
-    except socket.error:
-        # Socket already exists, meaning another instance is running
-        return True
-    except Exception as e:
-        logger.error(f"Error checking for existing instance via socket: {e}")
-        return False
-    finally:
-        try:
-            sock.close()
-        except:
-            pass
+            if proc.info["name"] == exe_name and proc.info["pid"] != current_pid:
+                count += 1
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return count > 0
 
 
 class App:
@@ -124,6 +90,10 @@ class App:
             self.tray_icon.icon = app_icon(True)
             self.tray_icon.menu = self.create_menu()
             logger.info("Background process started successfully")
+
+            if self.settings_app_instance:
+                self.settings_app_instance.update_battery_health_widgets()
+                self.settings_app_instance._update_app_status()
         else:
             logger.warning(
                 "Attempted to start background process while it was already running"
@@ -133,13 +103,17 @@ class App:
         if self.background_thread and self.background_thread.is_alive():
             logger.info("Stopping background process...")
             stop_background_process_flag.set()
-            self.background_thread.join(timeout=10)
+            self.background_thread.join(timeout=20)
             if self.background_thread.is_alive():
                 logger.error("Background thread did not terminate gracefully")
             self.background_thread = None
             self.tray_icon.icon = app_icon(False)
             self.tray_icon.menu = self.create_menu()
             logger.info("Background process stopped")
+
+            if self.settings_app_instance:
+                self.settings_app_instance.update_battery_health_widgets()
+                self.settings_app_instance._update_app_status()
         else:
             logger.info("Background process was not running")
 
@@ -154,11 +128,16 @@ class App:
         self.gui_window.lift()
         self.gui_window.attributes("-topmost", True)
         self.gui_window.attributes("-topmost", False)
+
+        self.settings_app_instance.update_battery_health_widgets()
+        self.settings_app_instance._update_app_status()
+
         logger.info("Settings GUI shown")
 
     def on_quit_callback(self, icon):
         logger.info("Quitting application initiated...")
 
+        # clear messages BEFORE stopping background process
         self.stop_background_process()
 
         if self.tray_icon:
@@ -174,13 +153,25 @@ class App:
         logger.info("Exiting Python process...")
         sys.exit(0)
 
+    def on_click_menu_item(self):
+        logger.info("Clicked on menu item")
+        if not self.check_bg_running():
+            self.start_background_process()
+
+        self.open_settings()
+
     def create_menu(self):
         menu = Menu(
+            MenuItem(
+                "On Click Menu",
+                self.on_click_menu_item,
+                default=True,
+                visible=False,
+            ),
             MenuItem("Open Settings", self.open_settings),
             MenuItem(
                 "Start Background",
                 self.start_background_process,
-                default=True,
                 enabled=not self.check_bg_running(),
             ),
             MenuItem(
@@ -217,7 +208,7 @@ def main():
             logger.warning("Another instance is already running")
             messagebox.showwarning(
                 "Application Already Running",
-                f"{get_app_name()} is already running. Please use the existing instance. Check in your System tray",
+                f"{get_app_name()} is already running. Check in your System tray and use the existing instance.",
             )
             sys.exit(0)
 

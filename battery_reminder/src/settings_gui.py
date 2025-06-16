@@ -218,6 +218,12 @@ class AppSettingUI:
         self.create_status_widgets(self.app_status_tab)
         self.notebook.add(self.app_status_tab, text="App Status".center(size))
 
+        # def on_tab_change(event):
+        #     self._update_app_status()
+        #     self.update_battery_health_widgets()
+
+        # self.notebook.bind("<<NotebookTabChanged>>", on_tab_change)
+
         self.notebook.pack(fill="both", expand=True)
 
     def toggle_theme(self) -> None:
@@ -309,7 +315,9 @@ class AppSettingUI:
             general_labelframe, text="Alert when Charger Plugged:"
         )
         charger_plugged_label.grid(row=1, column=0, sticky=W, padx=10, pady=(5, 15))
-        self.charger_plugged_var = tk.BooleanVar(value=True)
+        self.charger_plugged_var = tk.BooleanVar(
+            value=self.saved_data["PROC_SETTINGS"]["alert_when_charger_plugged"]
+        )
         self.charger_plugged_var.trace_add("write", on_variable_change)
         charger_plugged_check = ttk.Checkbutton(
             general_labelframe,
@@ -333,7 +341,9 @@ class AppSettingUI:
             general_labelframe, text="Alert when Charger Removed:"
         )
         charger_removed_label.grid(row=2, column=0, sticky=W, padx=10, pady=(5, 15))
-        self.charger_removed_var = tk.BooleanVar(value=True)
+        self.charger_removed_var = tk.BooleanVar(
+            value=self.saved_data["PROC_SETTINGS"]["alert_when_charger_removed"]
+        )
         self.charger_removed_var.trace_add("write", on_variable_change)
         charger_removed_check = ttk.Checkbutton(
             general_labelframe,
@@ -974,11 +984,11 @@ class AppSettingUI:
                 )
 
         # Show notification using Messagebox
-        Messagebox.ok(
-            title="Settings Saved",
-            message="Your settings have been successfully updated.",
-            parent=self.master,
-        )
+        # Messagebox.ok(
+        #     title="Settings Saved",
+        #     message="Your settings have been successfully updated.",
+        #     parent=self.master,
+        # )
 
         # Update button states
         self._update_button_states()
@@ -1364,11 +1374,11 @@ class AppSettingUI:
         try:
             self.start_proc()
             self._update_app_status()
-            Messagebox.ok(
-                title="Success",
-                message="Battery monitoring service has been started.",
-                parent=self.master,
-            )
+            # Messagebox.ok(
+            #     title="Success",
+            #     message="Battery monitoring service has been started.",
+            #     parent=self.master,
+            # )
             logger.info("Battery monitoring service started successfully")
         except Exception as e:
             logger.error(f"Failed to start battery monitoring service: {str(e)}")
@@ -1384,11 +1394,11 @@ class AppSettingUI:
         try:
             self.stop_proc()
             self._update_app_status()
-            Messagebox.ok(
-                title="Success",
-                message="Battery monitoring service has been stopped.",
-                parent=self.master,
-            )
+            # Messagebox.ok(
+            #     title="Success",
+            #     message="Battery monitoring service has been stopped.",
+            #     parent=self.master,
+            # )
             logger.info("Battery monitoring service stopped successfully")
         except Exception as e:
             logger.error(f"Failed to stop battery monitoring service: {str(e)}")
