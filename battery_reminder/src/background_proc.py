@@ -167,6 +167,7 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
             message=f"You should remove the charger now! There is {self.time_to_full or ''} of time left until full charge! Better to not spoil your battery!",
             icon=Icon(get_emoji("perfect")),
             timeout=NOTIFICATION_TIMEOUT,
+            urgency=Urgency.Critical,
         )
 
         self.notifications.append(notification)
@@ -201,6 +202,7 @@ class BackgroundProcessManager(metaclass=SingletonMeta):
             message=f"You have only {self.percentage:.1f}% battery left which will last for {self.time_to_empty}. Charge quickly!",
             icon=Icon(get_emoji("oh-no")),
             timeout=NOTIFICATION_TIMEOUT,
+            urgency=Urgency.Critical,
         )
 
         self.notifications.append(notification)
@@ -345,6 +347,9 @@ async def main():
     try:
         logger.info("Starting background process main loop")
         app = BackgroundProcessManager()
+        print(await app.notifier.has_authorisation())
+        if not await app.notifier.has_authorisation():
+            await app.notifier.request_authorisation()
         await clear_all_messages()
 
         await app.send_welcome_message()

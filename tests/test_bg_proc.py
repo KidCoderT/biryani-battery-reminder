@@ -77,7 +77,7 @@ async def test_proc(app: BackgroundProcessManager):
     try:
         while True:
             await app.update()
-            await asyncio.sleep(10)
+            await asyncio.sleep(1)
     except asyncio.CancelledError:
         print("\nBackground process cancelled")
         raise
@@ -86,6 +86,10 @@ async def test_proc(app: BackgroundProcessManager):
 async def main():
     app = BackgroundProcessManager(_class=_Battery)
     loop = asyncio.get_running_loop()
+
+    # print(await app.notifier.has_authorisation())
+    await app.notifier.request_authorisation()
+    # if not await app.notifier.has_authorisation():
 
     app.battery.set_test_state(
         "Charging" if input("Start State: ") == "c" else "Discharging"

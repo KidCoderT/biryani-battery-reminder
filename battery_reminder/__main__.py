@@ -68,6 +68,7 @@ class App:
             self.gui_window,
             self.stop_background_process,
             self.start_background_process,
+            self.on_quit_callback,
             self.check_bg_running,
             self.update_startup_setting,
         )
