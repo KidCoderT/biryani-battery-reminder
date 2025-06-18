@@ -1,24 +1,23 @@
 import tkinter as tk
 from typing import Any, Dict, Literal
+from PIL import Image, ImageTk
 
 import ttkbootstrap as ttk
-from ttkbootstrap import style
 from ttkbootstrap.constants import *
 from ttkbootstrap.dialogs import Messagebox
-from ttkbootstrap.icons import Emoji
 from ttkbootstrap.scrolled import ScrolledFrame
 from ttkbootstrap.tooltip import ToolTip
 
 from battery_reminder.src.background_proc import BackgroundProcessManager
 from battery_reminder.src.config import (
     AppConfig,
-    get_app_name,
     get_default_config,
     load_config,
     save_config,
 )
 from battery_reminder.src.logger_config import setup_logger
 from battery_reminder.src.startup_manager import add_to_startup, remove_from_startup
+from battery_reminder.src.assets_manager import get_tkinter_icon
 
 # Initialize logger
 logger = setup_logger()
@@ -59,6 +58,7 @@ class AppSettingUI:
         main_window: ttk.Window,
         stop_proc=lambda: print("stop proc"),
         start_proc=lambda: print("start proc"),
+        quit_app=lambda: print("quit app"),
         check_bg_proc_stat=lambda: True,
         update_startup_setting=lambda x: print(f"change to: {x}"),
         hide_gui_on_close=True,
@@ -77,6 +77,7 @@ class AppSettingUI:
         self.start_proc = start_proc
         self.stop_proc = stop_proc
         self.update_startup_setting = update_startup_setting
+        self.quit_app = quit_app
 
         self._setup_window()
         self._initialize_theme()
@@ -109,6 +110,11 @@ class AppSettingUI:
         logger.debug("Setting up main window properties")
         self.master.geometry(self.WINDOW_SIZE)
         self.master.resizable(False, False)
+
+        original_image = Image.open(get_tkinter_icon())
+        resized_image = original_image.resize((48, 48), Image.Resampling.LANCZOS)
+        tk_image = ImageTk.PhotoImage(resized_image)
+        self.master.tk.call("wm", "iconphoto", self.master._w, tk_image)
 
     def _initialize_theme(self) -> None:
         """Initialize theme-related settings and styles."""
@@ -1315,7 +1321,9 @@ class AppSettingUI:
         )
         self.start_button.pack(side=LEFT, padx=(0, 10))
         ToolTip(
-            self.start_button, "Start the battery monitoring service", bootstyle="info"
+            self.start_button,
+            "Start the battery monitoring service",
+            bootstyle="success",
         )
 
         # Stop Button
@@ -1323,14 +1331,39 @@ class AppSettingUI:
             buttons_frame,
             text="Stop App",
             command=self._stop_app,
-            style="danger.TButton",
+            style="warning.TButton",
             width=15,
             state="disabled",
         )
-        self.stop_button.pack(side=LEFT)
+        self.stop_button.pack(side=LEFT, padx=(0, 10))
         ToolTip(
-            self.stop_button, "Stop the battery monitoring service", bootstyle="info"
+            self.stop_button, "Stop the battery monitoring service", bootstyle="warning"
         )
+
+        def _quit_app() -> None:
+            """Quit the application with confirmation."""
+            logger.info("User requested to quit application")
+            result = Messagebox.yesno(
+                title="Confirm Quit",
+                message="Are you sure you want to quit the application? This will stop all battery monitoring services.",
+                parent=self.master,
+            )
+
+            if result == "Yes":
+                logger.info("User confirmed quit - calling quit_app function")
+                self.quit_app()
+            else:
+                logger.info("User cancelled quit operation")
+
+        self.quit_button = ttk.Button(
+            buttons_frame,
+            text="QUIT APP",
+            command=_quit_app,
+            style="danger.TButton",
+            width=15,
+        )
+        self.quit_button.pack(side=LEFT)
+        ToolTip(self.quit_button, "Quit the application entirely", bootstyle="danger")
 
         # Bug Report Frame
         bug_report_frame = ttk.Frame(content_frame)

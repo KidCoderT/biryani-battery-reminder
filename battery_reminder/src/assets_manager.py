@@ -50,6 +50,10 @@ EMOJI: dict[EMOJI_TYPES, Path] = {
 }
 
 
+def get_tkinter_icon():
+    return ASSETS_FOLDER / "icon.png"
+
+
 def app_icon(background_proc_state: bool):
     return APP_ICONS[background_proc_state]
 
