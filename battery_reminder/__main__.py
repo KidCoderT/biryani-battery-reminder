@@ -16,17 +16,15 @@
 
 import os
 import sys
-import asyncio
 import threading
 import ttkbootstrap as ttk
 from tkinter import messagebox
 from pystray import Icon, Menu, MenuItem
 
 from battery_reminder.src.settings_gui import AppSettingUI
-from battery_reminder.src.config import load_config, get_app_name
+from battery_reminder.src.config import load_config, get_app_name, is_first_run
 from battery_reminder.src.assets_manager import app_icon
 from battery_reminder.src.background_proc import (
-    clear_all_messages,
     run_background_process,
     stop_background_process_flag,
 )
@@ -239,6 +237,10 @@ def main():
 
         if not app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
             logger.info("Opening settings on manual launch")
+            app_instance.open_settings()
+
+        if is_first_run():
+            logger.info("Opening settings for first installation")
             app_instance.open_settings()
 
         # Run the Tkinter mainloop in the main thread

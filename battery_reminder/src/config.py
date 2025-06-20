@@ -25,6 +25,7 @@ APP_NAME = "biryani-battery-reminder"
 CONFIG_FILE_NAME = (
     f"{APP_NAME.split('-')[0].lower().replace('-', '_').replace(' ', '_')}_config.json"
 )
+INSTALL_FILE_NAME = f"{APP_NAME.split('-')[0].lower()}_on_open_config.txt"
 SHORTCUT_NAME = "Biryani Battery Reminder"
 
 """
@@ -38,10 +39,11 @@ Expected structure for the config.json file:
         "low_charge_percent": 10,
         "high_charge_percent": 95,
         "remind_low_charge_time": 5,
-        "remind_high_charge_time": 10
+        "remind_high_charge_time": 10,
     },
     "GUI_SETTINGS": {
-        "theme": "system"
+        "theme": "system",
+        "initially_settings_opened": false
     }
 }
 
@@ -110,9 +112,15 @@ def get_app_name():
 if getattr(sys, "frozen", False):
     # If running as a PyInstaller bundle
     config_path = os.path.join(os.path.dirname(sys.executable), CONFIG_FILE_NAME)
+    on_install_file_path = os.path.join(
+        os.path.dirname(sys.executable), INSTALL_FILE_NAME
+    )
 else:
     # If running as a script make the config outside
     config_path = Path(os.path.abspath(__file__)).parent.parent / CONFIG_FILE_NAME
+    on_install_file_path = (
+        Path(os.path.abspath(__file__)).parent.parent / INSTALL_FILE_NAME
+    )
 
 logger.debug(f"Config path: {config_path}")
 
@@ -182,11 +190,35 @@ def save_config(config: AppConfig):
         raise
 
 
+def is_first_run() -> bool:
+    """
+    Check if the newly installed app has been run before or not.
+    Returns True if this is the first run (creates marker file), False otherwise.
+    """
+    logger.debug(f"Checking if first run by looking for: {on_install_file_path}")
+
+    if os.path.exists(on_install_file_path):
+        logger.info("App has already been installed; no need to open settings.")
+        return False
+
+    try:
+        with open(on_install_file_path, "w"):
+            pass
+        logger.info(
+            f"First run detected. Created marker file at: {on_install_file_path}"
+        )
+    except Exception as e:
+        logger.error(f"Failed to create first run marker file: {e}")
+        # Still return True, but caller should be aware of the error
+
+    return True
+
+
 __all__ = [
     "get_app_name",
     "load_config",
     "save_config",
     "AppConfig",
-    # "DEFAULT_CONFIG_DATA",
+    "is_first_run",
     "get_default_config",
 ]

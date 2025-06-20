@@ -1436,9 +1436,17 @@ class AppSettingUI:
         # If the above options don't work or you need further assistance, please email me directly at coder52057@gmail.com.
         ttk.Label(
             content_frame,
-            text="If the above options don't work, you can directly email coder52057@gmail.com for help.",
+            text="If the above options don't work, you can directly email ",
             font=("Arial", 9, "italic"),
             foreground="#888888",
+            anchor="center",
+            justify="center",
+        ).pack(fill="x", pady=(0, 0))
+        ttk.Label(
+            content_frame,
+            text="coder52057@gmail.com",
+            font=("Arial", 10, "bold"),
+            foreground="#222222",
             anchor="center",
             justify="center",
             wraplength=500,
