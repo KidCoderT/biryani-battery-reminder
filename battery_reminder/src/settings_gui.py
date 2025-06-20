@@ -12,6 +12,7 @@
 import tkinter as tk
 from typing import Any, Dict, Literal
 from PIL import Image, ImageTk
+import webbrowser
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -42,7 +43,7 @@ class AppSettingUI:
     DARK_THEME = "darkly"
 
     # UI Constants
-    WINDOW_SIZE = "820x990"
+    WINDOW_SIZE = "820x1025"
     METER_SIZE = 200
     METER_ARC_RANGE = 360
 
@@ -120,7 +121,8 @@ class AppSettingUI:
         """Configure the main window properties."""
         logger.debug("Setting up main window properties")
         self.master.geometry(self.WINDOW_SIZE)
-        self.master.resizable(False, False)
+        self.master.minsize(680, 680)
+        # self.master.resizable(False, False)
 
         original_image = Image.open(get_tkinter_icon())
         resized_image = original_image.resize((48, 48), Image.Resampling.LANCZOS)
@@ -217,29 +219,28 @@ class AppSettingUI:
         )
 
         self.notebook = ttk.Notebook(self.main_frame, style="custom.TNotebook")
-
         size = 20
 
         # App Settings Tab
         self.app_settings_tab = ttk.Frame(self.notebook)
-        self.create_app_settings_widgets(self.app_settings_tab)
+        app_settings_scroll = ScrolledFrame(self.app_settings_tab, autohide=True)
+        app_settings_scroll.pack(fill="both", expand=True)
+        self.create_app_settings_widgets(app_settings_scroll)
         self.notebook.add(self.app_settings_tab, text="App Settings".center(size))
 
         # Battery Health Tab
-        self.battery_health_tab = ttk.Frame(self.notebook, padding=(20, 20))
-        self.create_battery_health_widgets(self.battery_health_tab)
+        self.battery_health_tab = ttk.Frame(self.notebook)
+        battery_health_scroll = ScrolledFrame(self.battery_health_tab, autohide=True)
+        battery_health_scroll.pack(fill="both", expand=True)
+        self.create_battery_health_widgets(battery_health_scroll)
         self.notebook.add(self.battery_health_tab, text="Battery Health".center(size))
 
         # App Status Tab
-        self.app_status_tab = ttk.Frame(self.notebook, padding=(20, 20))
-        self.create_status_widgets(self.app_status_tab)
+        self.app_status_tab = ttk.Frame(self.notebook)
+        app_status_scroll = ScrolledFrame(self.app_status_tab, autohide=True)
+        app_status_scroll.pack(fill="both", expand=True)
+        self.create_status_widgets(app_status_scroll)
         self.notebook.add(self.app_status_tab, text="App Status".center(size))
-
-        # def on_tab_change(event):
-        #     self._update_app_status()
-        #     self.update_battery_health_widgets()
-
-        # self.notebook.bind("<<NotebookTabChanged>>", on_tab_change)
 
         self.notebook.pack(fill="both", expand=True)
 
@@ -274,9 +275,9 @@ class AppSettingUI:
         Args:
             frame: The parent frame for the app settings widgets
         """
-        scrolled_frame = ScrolledFrame(frame, autohide=True)
-        scrolled_frame.pack(expand=True, fill="both")
-        self._create_form_widgets(scrolled_frame)
+        # scrolled_frame = ScrolledFrame(frame, autohide=True)
+        # scrolled_frame.pack(expand=True, fill="both")
+        self._create_form_widgets(frame)
 
     def _create_form_widgets(self, frame: ttk.Frame) -> None:
         """Create form widgets for the app settings."""
@@ -1017,8 +1018,10 @@ class AppSettingUI:
         Args:
             frame: The parent frame for the battery health widgets
         """
-        self._create_top_details(frame)
-        self._create_bottom_details(frame)
+        container = ttk.Frame(frame)
+        container.pack(fill="both", padx=(20, 20))
+        self._create_top_details(container)
+        self._create_bottom_details(container)
 
     def _create_top_details(self, frame: ttk.Frame) -> None:
         """Create the top section of battery details.
@@ -1376,24 +1379,106 @@ class AppSettingUI:
         self.quit_button.pack(side=LEFT)
         ToolTip(self.quit_button, "Quit the application entirely", bootstyle="danger")
 
-        # Bug Report Frame
-        bug_report_frame = ttk.Frame(content_frame)
-        bug_report_frame.pack(fill="none", anchor="center")
+        ttk.Separator(content_frame, orient="horizontal", style="default").pack(
+            fill="x", pady=(20, 15)
+        )
 
-        # Bug Report Button
-        self.bug_report_button = ttk.Button(
-            bug_report_frame,
-            text="Report Bug/Issue",
-            command=self._report_bug,
+        github_frame = ttk.LabelFrame(
+            content_frame,
+            text="   Have a Github Account?   ",
+            style="default",
+            padding=(10, 10),
+        )
+        github_frame.pack(
+            fill="x",
+            pady=(20, 10),  # Add extra padding at bottom
+        )
+
+        # Github Button
+        ttk.Button(
+            github_frame,
+            text="Report Bug/Issue 🐛",
+            command=lambda: self._open_url(
+                "https://github.com/KidCoderT/biryani-battery-reminder/issues/new?template=bug_report.md"
+            ),
             style="info.TButton",
             width=20,
+        ).pack(fill="x")
+
+        ttk.Button(
+            github_frame,
+            text="Suggest a Feature 💡",
+            command=lambda: self._open_url(
+                "https://github.com/KidCoderT/biryani-battery-reminder/issues/new?template=feature_request.md"
+            ),
+            style="primary.TButton",
+            width=20,
+        ).pack(fill="x", pady=(10, 0))
+
+        gmail_frame = ttk.LabelFrame(
+            content_frame,
+            text="   Or, send me an email!   ",
+            style="default",
+            padding=(10, 10),
         )
-        self.bug_report_button.pack(side=LEFT)
-        ToolTip(
-            self.bug_report_button,
-            "Report any bugs or issues you encounter",
-            bootstyle="info",
+        gmail_frame.pack(
+            fill="x",
+            pady=(20, 20),  # Add extra padding at bottom
         )
+        ttk.Button(
+            gmail_frame,
+            text="Send Email 📧",
+            command=lambda: self._open_mailto("coder52057@gmail.com"),
+            style="success.TButton",
+            width=20,
+        ).pack(fill="x", pady=(0, 0))
+
+        # If the above options don't work or you need further assistance, please email me directly at coder52057@gmail.com.
+        ttk.Label(
+            content_frame,
+            text="If the above options don't work, you can directly email coder52057@gmail.com for help.",
+            font=("Arial", 9, "italic"),
+            foreground="#888888",
+            anchor="center",
+            justify="center",
+            wraplength=500,
+        ).pack(fill="x", pady=(0, 10))
+
+        ttk.Separator(content_frame, orient="horizontal", style="default").pack(
+            fill="x", pady=(10, 10)
+        )
+
+        # Appreciation label for starring the repo
+        ttk.Label(
+            content_frame,
+            text="Like this app? Star the repo and share your feeback to show your appreciation!",
+            font=("Arial", 11, "normal"),
+            anchor="center",
+            justify="center",
+            wraplength=500,
+        ).pack(fill="x", pady=(0, 5))
+
+        # Star the GitHub repo button
+        ttk.Button(
+            content_frame,
+            text="⭐ Star the GitHub Repo!",
+            command=lambda: self._open_url(
+                "https://github.com/KidCoderT/biryani-battery-reminder"
+            ),
+            style="default.TButton",
+            width=25,
+        ).pack(fill="x", pady=(0, 5))
+
+        # Review button (Product Hunt as example)
+        ttk.Button(
+            content_frame,
+            text="📝 Leave a Review!",
+            command=lambda: self._open_url(
+                "https://www.producthunt.com/products/biryani-battery-reminder"
+            ),
+            style="warning.TButton",
+            width=25,
+        ).pack(fill="x", pady=(5, 10))
 
         # Initialize app status
         self._update_app_status()
@@ -1452,15 +1537,29 @@ class AppSettingUI:
                 parent=self.master,
             )
 
-    def _report_bug(self) -> None:
-        """Open the bug report dialog."""
-        logger.info("Opening bug report dialog")
-        # TODO: Implement bug reporting functionality
-        Messagebox.show_info(
-            title="Bug Report",
-            message="Bug reporting functionality will be implemented in a future update.",
-            parent=self.master,
-        )
+    def _open_url(self, url: str) -> None:
+        """Open a URL in the default web browser."""
+        try:
+            webbrowser.open(url)
+        except Exception as e:
+            logger.error(f"Failed to open URL {url}: {e}")
+            Messagebox.show_error(
+                title="Error",
+                message=f"Failed to open the link: {str(e)}",
+                parent=self.master,
+            )
+
+    def _open_mailto(self, email: str) -> None:
+        """Open the default mail client with a mailto link."""
+        try:
+            webbrowser.open(f"mailto:{email}")
+        except Exception as e:
+            logger.error(f"Failed to open mailto for {email}: {e}")
+            Messagebox.show_error(
+                title="Error",
+                message=f"Failed to open the mail client: {str(e)}",
+                parent=self.master,
+            )
 
 
 def main(debug=False):

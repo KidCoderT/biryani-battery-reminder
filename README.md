@@ -43,8 +43,8 @@ _Coming soon! The app is so beautiful, screenshots are being prepared with extra
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/battery-reminder.git
-cd battery-reminder
+git clone https://github.com/KidCoderT/biryani-battery-reminder.git
+cd biryani-battery-reminder
 
 # Install dependencies
 poetry install
