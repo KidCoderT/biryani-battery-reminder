@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Biryani Battery Reminder"
-#define MyAppVersion "0.9.0"
+#define MyAppVersion "0.9.5"
 #define MyAppPublisher "Tejas, Inc"
 #define MyAppURL "https://www.example.com/"
 #define MyAppExeName "biryani-battery-reminder.exe"
@@ -29,11 +29,11 @@ ArchitecturesAllowed=x64compatible
 ; the 64-bit view of the registry.
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
-LicenseFile=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\LICENSE.txt
+LicenseFile=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\LICENSE
 ; Remove the following line to run in administrative install mode (install for all users).
 PrivilegesRequired=lowest
 OutputDir=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\build
-OutputBaseFilename=Battery_Reminder_Installer(BETA)
+OutputBaseFilename=Battery_Reminder_Installer(BETA-2)
 SetupIconFile=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\assets\icon.ico
 SolidCompression=yes
 WizardStyle=modern
