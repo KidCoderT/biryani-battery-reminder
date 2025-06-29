@@ -16,24 +16,25 @@
 
 import os
 import sys
+import asyncio
 import threading
 import ttkbootstrap as ttk
 from tkinter import messagebox
 from pystray import Icon, Menu, MenuItem
 
-from battery_reminder.src.settings_gui import AppSettingUI
-from battery_reminder.src.config import load_config, get_app_name, is_first_run
-from battery_reminder.src.assets_manager import app_icon
-from battery_reminder.src.background_proc import (
+from battery_reminder.src import AppSettingUI
+from battery_reminder.src import load_config, get_app_name, is_first_run
+from battery_reminder.src import app_icon
+from battery_reminder.src import (
     run_background_process,
     stop_background_process_flag,
 )
-from battery_reminder.src.startup_manager import (
+from battery_reminder.src import (
     add_to_startup,
     remove_from_startup,
     is_in_startup,
 )
-from battery_reminder.src.logger_config import setup_logger
+from battery_reminder.src import setup_logger
 
 # Initialize logger
 logger = setup_logger()
@@ -69,6 +70,7 @@ class App:
 
         self.settings_app_instance = None
         self.gui_window = None
+        self.gui_window: ttk.Window | None = None
         self.tray_icon = None
 
         # Initialize the main window but keep it hidden
@@ -102,6 +104,7 @@ class App:
                 target=run_background_process, daemon=True
             )
             self.background_thread.start()
+            assert self.tray_icon is not None
             self.tray_icon.icon = app_icon(True)
             self.tray_icon.menu = self.create_menu()
             logger.info("Background process started successfully")
@@ -122,6 +125,7 @@ class App:
             if self.background_thread.is_alive():
                 logger.error("Background thread did not terminate gracefully")
             self.background_thread = None
+            assert self.tray_icon is not None
             self.tray_icon.icon = app_icon(False)
             self.tray_icon.menu = self.create_menu()
             logger.info("Background process stopped")
@@ -133,6 +137,8 @@ class App:
             logger.info("Background process was not running")
 
     def open_settings(self):
+        assert self.gui_window is not None
+
         if not self.gui_window.winfo_exists():
             logger.info("Recreating settings GUI window")
             self.gui_window = ttk.Window()
@@ -144,12 +150,13 @@ class App:
         self.gui_window.attributes("-topmost", True)
         self.gui_window.attributes("-topmost", False)
 
+        assert self.settings_app_instance is not None
         self.settings_app_instance.update_battery_health_widgets()
         self.settings_app_instance._update_app_status()
 
         logger.info("Settings GUI shown")
 
-    def on_quit_callback(self, icon):
+    def on_quit_callback(self):
         logger.info("Quitting application initiated...")
 
         # clear messages BEFORE stopping background process
@@ -253,47 +260,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-"""
-Application Overview and Process Flow:
-
-1. Application Structure:
-   - The app is a system tray application with a GUI settings window
-   - Uses Tkinter for GUI and pystray for system tray functionality
-   - Implements a background process for battery monitoring
-
-2. Main Components:
-   - App class: Core application logic and state management
-   - System tray icon: Persistent interface for user control
-   - Settings GUI: Configuration interface
-   - Background process: Battery monitoring thread
-
-3. Startup Process:
-   - Application initializes with configuration from config file
-   - Creates system tray icon
-   - If 'run_on_startup' is enabled, starts background process
-   - If launched manually (not on startup), opens settings GUI
-
-4. Key Features:
-   - System tray integration with menu options
-   - Settings GUI for configuration
-   - Background process control (start/stop)
-   - Startup management
-   - Clean shutdown process
-
-5. Threading Model:
-   - Main thread: Handles GUI and application flow
-   - Background thread: Runs battery monitoring process
-   - Tray icon thread: Manages system tray interface
-
-6. Shutdown Process:
-   - Stops background process
-   - Removes system tray icon
-   - Destroys GUI windows
-   - Performs clean exit
-
-7. Configuration:
-   - Loads settings from config file
-   - Manages startup behavior
-   - Controls background process state
-"""

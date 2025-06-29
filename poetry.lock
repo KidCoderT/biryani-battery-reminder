@@ -13,6 +13,24 @@ files = [
 ]
 
 [[package]]
+name = "async-tkinter-loop"
+version = "0.9.3"
+description = "Asynchronous mainloop implementation for tkinter"
+optional = false
+python-versions = ">=3.8,<4.0"
+groups = ["main"]
+files = [
+    {file = "async_tkinter_loop-0.9.3-py3-none-any.whl", hash = "sha256:4c69f46ffdbac48dc44c296c3a7b00c4cc4f852c3d43aa2fa329991d1fadea02"},
+    {file = "async_tkinter_loop-0.9.3.tar.gz", hash = "sha256:509c418139847bcb2e47a5a6b6d24a2e2dca290bc468dad6b6b8029e8a865bfd"},
+]
+
+[package.dependencies]
+typing-extensions = ">=4.7.0,<=5.0"
+
+[package.extras]
+examples = ["Pillow (>=9.1.1,<11.0.0)", "customtkinter (>=5.2.1,<6.0.0)", "httpx (>=0.23.1,<0.26.0)"]
+
+[[package]]
 name = "batteryinfo"
 version = "0.1.5"
 description = "A Python module written in rust for battery information"
@@ -1280,4 +1298,4 @@ windows = ["pywin32"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.14"
-content-hash = "48c7d314eaa83f25e000bae64595f312f865da6d24d7a2b895ff7a9c22a2c460"
+content-hash = "bbb14c24aac09425c8f517668701164f1868b9f96467929f99351280acdd7ddd"
