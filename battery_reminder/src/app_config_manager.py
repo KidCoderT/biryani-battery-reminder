@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Literal, TypedDict
 
 from battery_reminder.src.logger_config import setup_logger
-from battery_reminder.src.utils import SingletonMeta
 
 # Initialize logger
 logger = setup_logger()
@@ -126,83 +125,69 @@ else:
 logger.debug(f"Config path: {config_path}")
 
 
-class AppSettingsManager(metaclass=SingletonMeta):
-    def __init__(self) -> None:
-        self.config = self.__load_config()
-        logger.debug("ConfigManager initialized successfully")
-        self.updated = False
+def load_config() -> AppConfig:
+    """
+    Loads the configuration from the JSON file.
+    If the file doesn't exist, it creates it with default values.
+    Returns the configuration as a dictionary.
+    """
+    logger.info(f"Loading config from: {config_path}")
 
-    def __load_config(self) -> AppConfig:
-        """
-        Loads the configuration from the JSON file.
-        If the file doesn't exist, it creates it with default values.
-        Returns the configuration as a dictionary.
-        """
-        logger.info(f"Loading config from: {config_path}")
+    config: AppConfig
 
-        config: AppConfig
-
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, "r") as config_file:
-                    # Load the raw dictionary first, then cast to AppConfig
-                    loaded_config_raw: dict = json.load(config_file)
-                    logger.debug("Successfully loaded config file")
-
-                config = deepcopy(DEFAULT_CONFIG_DATA)  # Use deepcopy instead of copy
-                for section_key, section_defaults in DEFAULT_CONFIG_DATA.items():
-                    if section_key in loaded_config_raw and isinstance(
-                        loaded_config_raw[section_key], dict
-                    ):
-                        # Update section with loaded values, preserving defaults for missing keys
-                        config[section_key].update(loaded_config_raw[section_key])
-                    else:
-                        logger.warning(
-                            f"Section '{section_key}' missing or malformed in config file. Using defaults."
-                        )
-
-                # Check if the loaded config needed any updates from defaults and save if so
-                original_file_content = ""
-                with open(config_path, "r") as f:
-                    original_file_content = f.read()
-
-                temp_config_str = json.dumps(config, indent=4)
-                if temp_config_str != original_file_content.strip():
-                    logger.info("Config file needs updating with new defaults")
-                    self.__save_config(config)
-
-            except json.JSONDecodeError as e:
-                logger.error(f"Error decoding JSON from {config_path}: {str(e)}")
-                logger.info("Creating default config due to JSON decode error")
-                config = deepcopy(DEFAULT_CONFIG_DATA)  # Use deepcopy here too
-                self.__save_config(config)
-        else:
-            logger.info(f"Config file not found at {config_path}. Creating default.")
-            config = deepcopy(DEFAULT_CONFIG_DATA)  # And here
-            self.__save_config(config)  # Create the default config file
-
-        return config
-
-    def get_config(self) -> AppConfig:
-        return self.config.copy()
-
-    @staticmethod
-    def __save_config(config: AppConfig):
-        """
-        Saves the given configuration dictionary to the JSON file.
-        """
+    if os.path.exists(config_path):
         try:
-            with open(config_path, "w") as config_file:
-                json.dump(config, config_file, indent=4)
-            logger.info(f"Config saved successfully to: {config_path}")
-        except Exception as e:
-            logger.error(f"Error saving config to {config_path}: {str(e)}")
-            raise
+            with open(config_path, "r") as config_file:
+                # Load the raw dictionary first, then cast to AppConfig
+                loaded_config_raw: dict = json.load(config_file)
+                logger.debug("Successfully loaded config file")
 
-    def update_config(self, config: AppConfig):
-        self.__save_config(config)
-        self.config = config
-        self.updated = True
+            config = deepcopy(DEFAULT_CONFIG_DATA)  # Use deepcopy instead of copy
+            for section_key, section_defaults in DEFAULT_CONFIG_DATA.items():
+                if section_key in loaded_config_raw and isinstance(
+                    loaded_config_raw[section_key], dict
+                ):
+                    # Update section with loaded values, preserving defaults for missing keys
+                    config[section_key].update(loaded_config_raw[section_key])
+                else:
+                    logger.warning(
+                        f"Section '{section_key}' missing or malformed in config file. Using defaults."
+                    )
+
+            # Check if the loaded config needed any updates from defaults and save if so
+            original_file_content = ""
+            with open(config_path, "r") as f:
+                original_file_content = f.read()
+
+            temp_config_str = json.dumps(config, indent=4)
+            if temp_config_str != original_file_content.strip():
+                logger.info("Config file needs updating with new defaults")
+                save_config(config)
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Error decoding JSON from {config_path}: {str(e)}")
+            logger.info("Creating default config due to JSON decode error")
+            config = deepcopy(DEFAULT_CONFIG_DATA)  # Use deepcopy here too
+            save_config(config)
+    else:
+        logger.info(f"Config file not found at {config_path}. Creating default.")
+        config = deepcopy(DEFAULT_CONFIG_DATA)  # And here
+        save_config(config)  # Create the default config file
+
+    return config
+
+
+def save_config(config: AppConfig):
+    """
+    Saves the given configuration dictionary to the JSON file.
+    """
+    try:
+        with open(config_path, "w") as config_file:
+            json.dump(config, config_file, indent=4)
+        logger.info(f"Config saved successfully to: {config_path}")
+    except Exception as e:
+        logger.error(f"Error saving config to {config_path}: {str(e)}")
+        raise
 
 
 def is_first_run() -> bool:
@@ -231,7 +216,8 @@ def is_first_run() -> bool:
 
 __all__ = [
     "get_app_name",
-    "AppSettingsManager",
+    "load_config",
+    "save_config",
     "AppConfig",
     "is_first_run",
     "get_default_config",

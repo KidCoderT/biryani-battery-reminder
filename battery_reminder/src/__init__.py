@@ -7,7 +7,6 @@ from battery_reminder.src.app_config_manager import (
 from battery_reminder.src.assets_manager import app_icon
 from battery_reminder.src.background_proc import (
     run_background_process,
-    stop_background_process_flag,
 )
 from battery_reminder.src.startup_manager import (
     add_to_startup,

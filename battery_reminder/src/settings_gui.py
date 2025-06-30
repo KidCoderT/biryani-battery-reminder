@@ -20,8 +20,10 @@ from ttkbootstrap.dialogs import Messagebox
 from ttkbootstrap.scrolled import ScrolledFrame
 from ttkbootstrap.tooltip import ToolTip
 
-from battery_reminder.src.background_proc import BackgroundProcessManager
-from battery_reminder.src.config import (
+from battery_reminder.src.background_proc import (
+    BatteryDataManager,
+)
+from battery_reminder.src.app_config_manager import (
     AppConfig,
     get_default_config,
     load_config,
@@ -72,7 +74,7 @@ class AppSettingUI:
         start_proc=lambda: print("start proc"),
         quit_app=lambda: print("quit app"),
         check_bg_proc_stat=lambda: True,
-        update_startup_setting=lambda x: print(f"change to: {x}"),
+        on_update_callback=lambda: print("settings updated"),
         hide_gui_on_close=True,
     ) -> None:
         """Initialize the application UI.
@@ -88,8 +90,9 @@ class AppSettingUI:
         self.check_bg_proc_stat = check_bg_proc_stat
         self.start_proc = start_proc
         self.stop_proc = stop_proc
-        self.update_startup_setting = update_startup_setting
+        self.on_update_callback = on_update_callback
         self.quit_app = quit_app
+        self.battery_data_manager = BatteryDataManager()
 
         self._setup_window()
         self._initialize_theme()
@@ -971,9 +974,6 @@ class AppSettingUI:
         # Update the saved data reference
         self.saved_data = current_data
 
-        # Update the config for the background process
-        BackgroundProcessManager().update_config(current_data)
-
         # Handle startup setting changes
         if self.saved_data["PROC_SETTINGS"]["run_on_startup"] != old_startup_setting:
             try:
@@ -1011,6 +1011,7 @@ class AppSettingUI:
         # Update button states
         self._update_button_states()
         logger.info("Settings saved successfully")
+        self.on_update_callback()
 
     def create_battery_health_widgets(self, frame: ttk.Frame) -> None:
         """Create battery health monitoring widgets.
@@ -1045,7 +1046,7 @@ class AppSettingUI:
             details_frame.grid_columnconfigure(0, weight=0)
             details_frame.grid_columnconfigure(1, weight=1)
 
-        data = BackgroundProcessManager().get_battery_data()
+        data = self.battery_data_manager.get_battery_data()
 
         details_data = [
             (left_details, "vendor"),
@@ -1109,7 +1110,7 @@ class AppSettingUI:
         self.bottom_frame.rowconfigure(0, weight=1)
         self.bottom_frame.rowconfigure(1, weight=1)
 
-        data = BackgroundProcessManager().get_battery_data()
+        data = self.battery_data_manager.get_battery_data()
 
         # Create meter
         self.meter = ttk.Meter(
@@ -1174,7 +1175,7 @@ class AppSettingUI:
 
     def update_battery_health_widgets(self) -> None:
         """Update all battery health related widgets with fresh data."""
-        data = BackgroundProcessManager().get_battery_data()
+        data = self.battery_data_manager.get_battery_data()
 
         for key, value in data.items():
             if key not in self.battery_detail_labels or key == "capacity":
@@ -1257,7 +1258,7 @@ class AppSettingUI:
     def _reload_data(self):
         """Reload the data from the config file."""
         try:
-            data = BackgroundProcessManager().get_battery_data()
+            data = self.battery_data_manager.get_battery_data()
             logger.debug("Reloading battery data")
 
             # Update all detail labels

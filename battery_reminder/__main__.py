@@ -18,6 +18,7 @@ import os
 import sys
 import asyncio
 import threading
+import multiprocessing
 import ttkbootstrap as ttk
 from tkinter import messagebox
 from pystray import Icon, Menu, MenuItem
@@ -27,7 +28,6 @@ from battery_reminder.src import load_config, get_app_name, is_first_run
 from battery_reminder.src import app_icon
 from battery_reminder.src import (
     run_background_process,
-    stop_background_process_flag,
 )
 from battery_reminder.src import (
     add_to_startup,
@@ -35,6 +35,8 @@ from battery_reminder.src import (
     is_in_startup,
 )
 from battery_reminder.src import setup_logger
+from async_tkinter_loop import async_mainloop
+from ctypes import c_bool
 
 # Initialize logger
 logger = setup_logger()
@@ -66,7 +68,13 @@ class App:
         logger.info("Initializing application...")
         self.app_name = get_app_name()
         self.config = load_config()
-        self.background_thread = None
+
+        self.notification_queue = multiprocessing.Queue()
+
+        self.stop_bg_process_flag = multiprocessing.Value(c_bool, False)
+        self.settings_updated_flag = multiprocessing.Value(c_bool, False)
+
+        self.background_process = None
 
         self.settings_app_instance = None
         self.gui_window = None
@@ -76,38 +84,45 @@ class App:
         # Initialize the main window but keep it hidden
         self.gui_window = ttk.Window()
         self.gui_window.withdraw()
-        self.check_bg_running = (
-            lambda: not stop_background_process_flag.is_set()
-            and self.background_thread is not None
-        )
+
         self.settings_app_instance = AppSettingUI(
             self.gui_window,
             self.stop_background_process,
             self.start_background_process,
             self.on_quit_callback,
             self.check_bg_running,
-            self.update_startup_setting,
+            self.on_settings_update_callback,
         )
-
-        self.setup_tray_icon()
-        logger.info("Application initialization complete")
 
         if self.config["PROC_SETTINGS"]["run_on_startup"]:
             logger.info("Application configured to run on startup")
             self.start_background_process()
 
+        self.setup_tray_icon()
+        logger.info("Application initialization complete")
+
+    def check_bg_running(self):
+        if self.stop_bg_process_flag.value:
+            logger.info("Background process is not running")
+            return False
+
+        return self.background_process is not None
+
     def start_background_process(self):
-        if self.background_thread is None or not self.background_thread.is_alive():
+        if self.background_process is None or not self.background_process.is_alive():
             logger.info("Starting background process...")
-            stop_background_process_flag.clear()
-            self.background_thread = threading.Thread(
-                target=run_background_process, daemon=True
+
+            self.stop_bg_process_flag.value = False
+            self.background_process = run_background_process(
+                self.notification_queue,
+                self.stop_bg_process_flag,
+                self.settings_updated_flag,
             )
-            self.background_thread.start()
-            assert self.tray_icon is not None
-            self.tray_icon.icon = app_icon(True)
-            self.tray_icon.menu = self.create_menu()
-            logger.info("Background process started successfully")
+
+            if self.tray_icon:
+                self.tray_icon.icon = app_icon(True)
+                self.tray_icon.menu = self.create_menu()
+                logger.info("Background process started successfully")
 
             if self.settings_app_instance:
                 self.settings_app_instance.update_battery_health_widgets()
@@ -118,17 +133,35 @@ class App:
             )
 
     def stop_background_process(self):
-        if self.background_thread and self.background_thread.is_alive():
+        if self.background_process and self.background_process.is_alive():
             logger.info("Stopping background process...")
-            stop_background_process_flag.set()
-            self.background_thread.join(timeout=20)
-            if self.background_thread.is_alive():
+
+            self.stop_bg_process_flag.value = True
+            self.background_process.join(timeout=20)
+
+            if self.background_process.is_alive():
                 logger.error("Background thread did not terminate gracefully")
-            self.background_thread = None
-            assert self.tray_icon is not None
-            self.tray_icon.icon = app_icon(False)
-            self.tray_icon.menu = self.create_menu()
+
+            self.background_process = None
+
+            if self.tray_icon:
+                self.tray_icon.icon = app_icon(False)
+                self.tray_icon.menu = self.create_menu()
+
             logger.info("Background process stopped")
+
+            logger.info("Sending stop message")
+
+            self.notification_queue.put_nowait(
+                dict(
+                    title="Background Process Stopped!",
+                    message="Be ware I will no longer remind you if you overcharge your battery!",
+                    icon="oh-no",
+                    timeout=0,
+                )
+            )
+
+            logger.debug("Stop message sent successfully")
 
             if self.settings_app_instance:
                 self.settings_app_instance.update_battery_health_widgets()
@@ -165,6 +198,9 @@ class App:
         if self.tray_icon:
             logger.info("Stopping system tray icon...")
             self.tray_icon.stop()
+
+        self.notification_queue.close()
+        # self.notification_queue.join_thread()
 
         if self.gui_window and self.gui_window.winfo_exists():
             logger.info("Destroying settings GUI...")
@@ -215,43 +251,46 @@ class App:
         threading.Thread(target=self.tray_icon.run, daemon=True).start()
         logger.info("System tray icon setup complete")
 
-    def update_startup_setting(self, run_on_startup):
-        if run_on_startup:
-            add_to_startup()
-        else:
-            remove_from_startup()
+    def on_settings_update_callback(self):
+        # if run_on_startup:
+        #     add_to_startup()
+        # else:
+        #     remove_from_startup()
 
-        logger.info(f"Startup setting updated: {run_on_startup}")
+        self.settings_updated_flag.value = True
+        # logger.info(f"Startup setting updated: {}")
 
 
 def main():
     try:
-        if is_already_running():
-            logger.warning("Another instance is already running")
-            messagebox.showwarning(
-                "Application Already Running",
-                f"{get_app_name()} is already running. Check in your System tray and use the existing instance.",
-            )
-            sys.exit(0)
+        # if is_already_running():
+        #     logger.warning("Another instance is already running")
+        #     messagebox.showwarning(
+        #         "Application Already Running",
+        #         f"{get_app_name()} is already running. Check in your System tray and use the existing instance.",
+        #     )
+        #     sys.exit(0)
 
         logger.info("Starting application...")
         app_instance = App()
 
-        if app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
-            if not is_in_startup():
-                add_to_startup()
-                logger.info("Startup setting updated: True")
-
-        if not app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
-            logger.info("Opening settings on manual launch")
-            app_instance.open_settings()
-
-        if is_first_run():
-            logger.info("Opening settings for first installation")
-            app_instance.open_settings()
+        # if app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
+        #     if not is_in_startup():
+        #         add_to_startup()
+        #         logger.info("Startup setting updated: True")
+        #
+        # if not app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
+        #     logger.info("Opening settings on manual launch")
+        #     app_instance.open_settings()
+        #
+        # if is_first_run():
+        #     logger.info("Opening settings for first installation")
+        #     app_instance.open_settings()
 
         # Run the Tkinter mainloop in the main thread
         logger.info("Starting main application loop")
+
+        assert app_instance.gui_window is not None
         app_instance.gui_window.mainloop()
     except Exception as e:
         logger.exception("Fatal error in main application loop")
