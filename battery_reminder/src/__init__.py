@@ -5,8 +5,10 @@ from battery_reminder.src.app_config_manager import (
     is_first_run,
 )
 from battery_reminder.src.assets_manager import app_icon
+from battery_reminder.src.notifier import Notifier
 from battery_reminder.src.background_proc import (
     run_background_process,
+    BackgroundProcessManager,
 )
 from battery_reminder.src.startup_manager import (
     add_to_startup,
@@ -14,3 +16,4 @@ from battery_reminder.src.startup_manager import (
     is_in_startup,
 )
 from battery_reminder.src.logger_config import setup_logger
+from battery_reminder.src import powerplan

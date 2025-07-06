@@ -183,7 +183,7 @@ class AppSettingUI:
         # App Title
         app_title_label = ttk.Label(
             header_frame,
-            text="Biryani (Battery Reminder)",
+            text="🍛 Biryani (Battery Reminder)",
             font=("Arial", 16, "bold"),
         )
         app_title_label.pack(side=LEFT, padx=(0, 10), expand=True, fill=X)
@@ -1549,7 +1549,7 @@ class AppSettingUI:
     def _open_url(self, url: str) -> None:
         """Open a URL in the default web browser."""
         try:
-            webbrowser.open(url)
+            webbrowser.open_new(url)
         except Exception as e:
             logger.error(f"Failed to open URL {url}: {e}")
             Messagebox.show_error(
@@ -1561,7 +1561,10 @@ class AppSettingUI:
     def _open_mailto(self, email: str) -> None:
         """Open the default mail client with a mailto link."""
         try:
-            webbrowser.open(f"mailto:{email}")
+            webbrowser.open_new(f"mailto:")
+            webbrowser.open_new(
+                f"https://mail.google.com/mail/?view=cm&to={email}&su=Hello.%20Regarding%20Biryani&body=This%20is%20the%20body"
+            )
         except Exception as e:
             logger.error(f"Failed to open mailto for {email}: {e}")
             Messagebox.show_error(

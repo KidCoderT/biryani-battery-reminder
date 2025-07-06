@@ -34,9 +34,12 @@ from battery_reminder.src import (
     remove_from_startup,
     is_in_startup,
 )
+from battery_reminder.src import Notifier
 from battery_reminder.src import setup_logger
 from async_tkinter_loop import async_mainloop
 from ctypes import c_bool
+
+from battery_reminder.src import BackgroundProcessManager
 
 # Initialize logger
 logger = setup_logger()
@@ -70,6 +73,10 @@ class App:
         self.config = load_config()
 
         self.notification_queue = multiprocessing.Queue()
+        self.critical_notifications_queue = multiprocessing.Queue()
+        self.notifier = Notifier(
+            self.notification_queue, self.critical_notifications_queue
+        )
 
         self.stop_bg_process_flag = multiprocessing.Value(c_bool, False)
         self.settings_updated_flag = multiprocessing.Value(c_bool, False)
@@ -113,8 +120,10 @@ class App:
             logger.info("Starting background process...")
 
             self.stop_bg_process_flag.value = False
+            self.notifier.clear_notifications.set()
             self.background_process = run_background_process(
                 self.notification_queue,
+                self.critical_notifications_queue,
                 self.stop_bg_process_flag,
                 self.settings_updated_flag,
             )
@@ -127,6 +136,7 @@ class App:
             if self.settings_app_instance:
                 self.settings_app_instance.update_battery_health_widgets()
                 self.settings_app_instance._update_app_status()
+
         else:
             logger.warning(
                 "Attempted to start background process while it was already running"
@@ -143,24 +153,13 @@ class App:
                 logger.error("Background thread did not terminate gracefully")
 
             self.background_process = None
+            self.notifier.send_process_stopped_message()
 
             if self.tray_icon:
                 self.tray_icon.icon = app_icon(False)
                 self.tray_icon.menu = self.create_menu()
 
             logger.info("Background process stopped")
-
-            logger.info("Sending stop message")
-
-            self.notification_queue.put_nowait(
-                dict(
-                    title="Background Process Stopped!",
-                    message="Be ware I will no longer remind you if you overcharge your battery!",
-                    icon="oh-no",
-                    timeout=0,
-                )
-            )
-
             logger.debug("Stop message sent successfully")
 
             if self.settings_app_instance:
@@ -184,6 +183,7 @@ class App:
         self.gui_window.attributes("-topmost", False)
 
         assert self.settings_app_instance is not None
+
         self.settings_app_instance.update_battery_health_widgets()
         self.settings_app_instance._update_app_status()
 
@@ -199,14 +199,14 @@ class App:
             logger.info("Stopping system tray icon...")
             self.tray_icon.stop()
 
-        self.notification_queue.close()
-        # self.notification_queue.join_thread()
-
         if self.gui_window and self.gui_window.winfo_exists():
             logger.info("Destroying settings GUI...")
             self.gui_window.destroy()
             self.gui_window = None
             self.settings_app_instance = None
+
+        self.critical_notifications_queue.close()
+        self.notification_queue.close()
 
         logger.info("Exiting Python process...")
         sys.exit(0)
@@ -257,11 +257,16 @@ class App:
         # else:
         #     remove_from_startup()
 
-        self.settings_updated_flag.value = True
+        if self.background_process and self.background_process.is_alive():
+            self.settings_updated_flag.value = True
+        else:
+            BackgroundProcessManager.send_updated_settings_message(
+                self.critical_notifications_queue
+            )
         # logger.info(f"Startup setting updated: {}")
 
 
-def main():
+async def main():
     try:
         # if is_already_running():
         #     logger.warning("Another instance is already running")
@@ -286,16 +291,24 @@ def main():
         # if is_first_run():
         #     logger.info("Opening settings for first installation")
         #     app_instance.open_settings()
+        app_instance.open_settings()
 
-        # Run the Tkinter mainloop in the main thread
+        def run_notifier_in_thread():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(app_instance.notifier.main())
+            loop.close()
+
+        notifier_thread = threading.Thread(target=run_notifier_in_thread, daemon=True)
+        notifier_thread.start()
+
         logger.info("Starting main application loop")
-
-        assert app_instance.gui_window is not None
         app_instance.gui_window.mainloop()
+
     except Exception as e:
         logger.exception("Fatal error in main application loop")
         raise
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
