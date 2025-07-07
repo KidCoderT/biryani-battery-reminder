@@ -1,6 +1,5 @@
 import queue
 import asyncio
-from desktop_notifier import DesktopNotifier
 from battery_reminder.src.app_config_manager import get_app_name
 from desktop_notifier import DesktopNotifier, Icon, Urgency, Button
 import multiprocessing

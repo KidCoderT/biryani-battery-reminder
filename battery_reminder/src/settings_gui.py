@@ -771,6 +771,241 @@ class AppSettingUI:
         ToolTip(overflow_interval_frame, overflow_interval_tooltip, bootstyle="danger")
         ToolTip(overflow_interval_label, overflow_interval_tooltip, bootstyle="danger")
 
+        # Power Save Mode Settings
+        power_save_labelframe = ttk.LabelFrame(
+            form_frame,
+            text="Power Save Mode Settings",
+            style="secondary",
+            padding=(10, 10),
+        )
+        power_save_labelframe.grid_columnconfigure(1, weight=1)  # Input column expands
+        power_save_labelframe.grid_columnconfigure(0, weight=0)  # Label column
+        power_save_labelframe.pack(
+            fill="x",
+            pady=(0, 20),
+        )
+
+        # Enable Power Save Mode
+        enable_power_save_label = ttk.Label(
+            power_save_labelframe, text="Enable Power Save Mode:"
+        )
+        enable_power_save_label.grid(row=0, column=0, sticky=W, padx=10, pady=(5, 15))
+        self.enable_power_save_var = tk.BooleanVar(
+            value=self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"]
+            is not None
+        )
+        self.enable_power_save_var.trace_add("write", on_variable_change)
+        enable_power_save_check = ttk.Checkbutton(
+            power_save_labelframe,
+            variable=self.enable_power_save_var,
+            style="primary-round-toggle",
+        )
+        enable_power_save_check.grid(row=0, column=1, sticky=E, padx=10, pady=(5, 15))
+        ToolTip(
+            enable_power_save_check,
+            "Automatically switch to Power Saver mode when battery is low",
+            bootstyle="info",
+        )
+        ToolTip(
+            enable_power_save_label,
+            "Automatically switch to Power Saver mode when battery is low",
+            bootstyle="info",
+        )
+
+        # Power Save Mode Percentage
+        power_save_percent_label = ttk.Label(
+            power_save_labelframe, text="Power Save Mode Threshold (%):"
+        )
+        power_save_percent_label.grid(row=1, column=0, sticky=W, padx=10, pady=(5, 15))
+
+        # Input frame for right alignment
+        power_save_input_frame = ttk.Frame(power_save_labelframe)
+        power_save_input_frame.grid(
+            row=1, column=1, sticky=EW, padx=(0, 10), pady=(5, 15)
+        )
+        power_save_input_frame.grid_columnconfigure(0, weight=1)
+
+        # Icon
+        power_save_icon_label = ttk.Label(
+            power_save_input_frame, text="🔋", font=("Arial", 12)
+        )
+        power_save_icon_label.pack(side=RIGHT, padx=(5, 0))
+
+        # Spinbox
+        self.power_save_percent_var = tk.IntVar(
+            value=self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"] or 55
+        )
+        self.power_save_percent_spinbox = ttk.Spinbox(
+            power_save_input_frame,
+            from_=10,
+            to=50,
+            textvariable=self.power_save_percent_var,
+            width=5,
+            wrap=False,
+        )
+        self.power_save_percent_spinbox.pack(side=RIGHT)
+        self.field_errors[self.power_save_percent_spinbox] = (
+            False  # Track initial error state
+        )
+
+        # Warning label
+        self.power_save_warning = ttk.Label(
+            power_save_labelframe,
+            text="Warning: Value should be between 10% and 50%",
+            foreground="red",
+            font=("Arial", 9),
+        )
+        self.power_save_warning.grid(
+            row=2, column=0, columnspan=2, sticky=W, padx=10, pady=(0, 5)
+        )
+        self.power_save_warning.grid_remove()
+
+        # Validation for power save percentage
+        def validate_power_save_percent(*args):
+            try:
+                value = self.power_save_percent_var.get()
+                is_error = value < 10 or value > 50
+                was_error = self.field_errors[self.power_save_percent_spinbox]
+
+                if is_error and not was_error:
+                    self.error_count += 1
+                    self.field_errors[self.power_save_percent_spinbox] = True
+                    self.power_save_warning.grid()
+                    self.power_save_percent_spinbox.configure(style="Error.TSpinbox")
+                elif not is_error and was_error:
+                    self.error_count -= 1
+                    self.field_errors[self.power_save_percent_spinbox] = False
+                    self.power_save_warning.grid_remove()
+                    self.power_save_percent_spinbox.configure(style="default.TSpinbox")
+
+                # Update error message display
+                if self.error_count > 0:
+                    self.error_label.config(
+                        text=f"Errors: {self.error_count} remaining"
+                    )
+                else:
+                    self.error_label.config(text="")
+
+                # Update button states
+                self._update_button_states()
+
+            except tk.TclError:
+                # Handle cases where input is not a valid integer temporarily
+                is_error = True
+                was_error = self.field_errors[self.power_save_percent_spinbox]
+                if is_error and not was_error:
+                    self.error_count += 1
+                    self.field_errors[self.power_save_percent_spinbox] = True
+                    self.power_save_warning.grid()
+                    self.power_save_percent_spinbox.configure(style="Error.TSpinbox")
+
+                # Update error message display even for invalid input during typing
+                if self.error_count > 0:
+                    self.error_label.config(
+                        text=f"Errors: {self.error_count} remaining"
+                    )
+                else:
+                    self.error_label.config(text="")
+
+                # Update button states
+                self._update_button_states()
+
+                self.power_save_percent_var.trace_add(
+                    "write", validate_power_save_percent
+                )
+
+        self.power_save_percent_var.trace_add("write", on_variable_change)
+
+        power_save_percent_tooltip = "When battery falls below this percentage, the app will automatically switch to Power Saver mode"
+        ToolTip(
+            self.power_save_percent_spinbox,
+            power_save_percent_tooltip,
+            bootstyle="info",
+        )
+        ToolTip(power_save_percent_label, power_save_percent_tooltip, bootstyle="info")
+        ToolTip(power_save_icon_label, power_save_percent_tooltip, bootstyle="info")
+
+        # Notify when power state changes
+        notify_power_change_label = ttk.Label(
+            power_save_labelframe, text="Notify when Power State Changes:"
+        )
+        notify_power_change_label.grid(row=3, column=0, sticky=W, padx=10, pady=(5, 15))
+        self.notify_power_change_var = tk.BooleanVar(
+            value=self.saved_data["PROC_SETTINGS"]["remind_when_power_state_changes"]
+        )
+        self.notify_power_change_var.trace_add("write", on_variable_change)
+        notify_power_change_check = ttk.Checkbutton(
+            power_save_labelframe,
+            variable=self.notify_power_change_var,
+            style="primary-round-toggle",
+        )
+        notify_power_change_check.grid(row=3, column=1, sticky=E, padx=10, pady=(5, 15))
+        ToolTip(
+            notify_power_change_check,
+            "Show notification when power mode is automatically changed",
+            bootstyle="info",
+        )
+        ToolTip(
+            notify_power_change_label,
+            "Show notification when power mode is automatically changed",
+            bootstyle="info",
+        )
+
+        # Function to enable/disable power save fields based on checkbox state
+        def toggle_power_save_fields(*args):
+            if self.enable_power_save_var.get():
+                self.power_save_percent_spinbox.configure(state="normal")
+                power_save_percent_label.configure(foreground="")
+                power_save_icon_label.configure(foreground="")
+                notify_power_change_check.configure(state="normal")
+                notify_power_change_label.configure(foreground="")
+            else:
+                self.power_save_percent_spinbox.configure(state="disabled")
+                power_save_percent_label.configure(foreground="gray")
+                power_save_icon_label.configure(foreground="gray")
+                notify_power_change_check.configure(state="disabled")
+                notify_power_change_label.configure(foreground="gray")
+
+        # Add trace to enable/disable checkbox
+        self.enable_power_save_var.trace_add("write", toggle_power_save_fields)
+
+        # Initialize the field state
+        toggle_power_save_fields()
+
+        # Default Power Plan
+        default_power_plan_label = ttk.Label(
+            power_save_labelframe, text="Default Power Plan:"
+        )
+        default_power_plan_label.grid(row=4, column=0, sticky=W, padx=10, pady=(5, 15))
+
+        # Import powerplan module for available plans
+        from battery_reminder.src import powerplan
+
+        # Create combobox for power plans
+        self.default_power_plan_var = tk.StringVar(
+            value=self.saved_data["PROC_SETTINGS"]["default_power_plan"]
+        )
+        self.default_power_plan_var.trace_add("write", on_variable_change)
+
+        default_power_plan_combobox = ttk.Combobox(
+            power_save_labelframe,
+            textvariable=self.default_power_plan_var,
+            values=powerplan.get_available_power_plans(),
+            state="readonly",
+            width=20,
+        )
+        default_power_plan_combobox.grid(
+            row=4, column=1, sticky=E, padx=10, pady=(5, 15)
+        )
+
+        default_power_plan_tooltip = (
+            "The power plan to restore to when battery level improves"
+        )
+        ToolTip(
+            default_power_plan_combobox, default_power_plan_tooltip, bootstyle="info"
+        )
+        ToolTip(default_power_plan_label, default_power_plan_tooltip, bootstyle="info")
+
         # Button and Error Message Frame
         button_error_frame = ttk.Frame(form_frame, padding=(0, 20))
         button_error_frame.pack(fill="x", expand=YES, anchor=S)
@@ -857,6 +1092,11 @@ class AppSettingUI:
         high_min, high_sec = self.high_interval_vars
         overflow_min, overflow_sec = self.overflow_interval_vars
 
+        # Handle power save mode settings
+        save_power_state_at_percent = None
+        if self.enable_power_save_var.get():
+            save_power_state_at_percent = self.power_save_percent_var.get()
+
         return {
             "PROC_SETTINGS": {
                 "run_on_startup": self.run_on_startup_var.get(),
@@ -869,6 +1109,9 @@ class AppSettingUI:
                 "remind_high_charge_time": high_min.get() * 60 + high_sec.get(),
                 "remind_overflow_charge_time": overflow_min.get() * 60
                 + overflow_sec.get(),
+                "save_power_state_at_percent": save_power_state_at_percent,
+                "remind_when_power_state_changes": self.notify_power_change_var.get(),
+                "default_power_plan": self.default_power_plan_var.get(),
             },
             "GUI_SETTINGS": {"theme": self.theme},
         }
@@ -951,6 +1194,21 @@ class AppSettingUI:
             )
             overflow_sec.set(
                 self.saved_data["PROC_SETTINGS"]["remind_overflow_charge_time"] % 60
+            )
+
+            # Reset power save mode settings
+            self.enable_power_save_var.set(
+                self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"]
+                is not None
+            )
+            self.power_save_percent_var.set(
+                self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"] or 55
+            )
+            self.notify_power_change_var.set(
+                self.saved_data["PROC_SETTINGS"]["remind_when_power_state_changes"]
+            )
+            self.default_power_plan_var.set(
+                self.saved_data["PROC_SETTINGS"]["default_power_plan"]
             )
 
             # Update button states
@@ -1249,6 +1507,22 @@ class AppSettingUI:
             overflow_sec.set(
                 get_default_config()["PROC_SETTINGS"]["remind_overflow_charge_time"]
                 % 60
+            )
+
+            # Reset power save mode settings
+            self.enable_power_save_var.set(
+                get_default_config()["PROC_SETTINGS"]["save_power_state_at_percent"]
+                is not None
+            )
+            self.power_save_percent_var.set(
+                get_default_config()["PROC_SETTINGS"]["save_power_state_at_percent"]
+                or 55
+            )
+            self.notify_power_change_var.set(
+                get_default_config()["PROC_SETTINGS"]["remind_when_power_state_changes"]
+            )
+            self.default_power_plan_var.set(
+                get_default_config()["PROC_SETTINGS"]["default_power_plan"]
             )
 
             # Update button states

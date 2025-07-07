@@ -52,8 +52,13 @@ POWER_STATES = {
     "Ultimate performance": powerplan.change_current_scheme_to_high,
 }
 
-# MESSAGES: LATER
+
+# MESSAGES SIGNALS: TODO: LATER
 # CHARGE_TO_100_MSG = "Charge to 100%"
+
+# MESSAGES
+MESSAGES = {}
+
 
 class BatteryDataManager(metaclass=SingletonMeta):
     def __init__(self, _class=Battery):
@@ -92,11 +97,23 @@ class BackgroundProcessManager:
         self.current_battery_state = BATTERY_STATE["NORMAL"]
         self.timers = {}
 
+        # Power stuff
+        self.default_power_state = powerplan.get_current_scheme_name()
+        self.power_state_changed = False
+
         self.notification_queue = notification_queue
         self.critical_notifications_queue = critical_notifications_queue
         self.config = load_config()
         logger.info("Background process manager initialized successfully")
 
+        self.can_change_power_state = (
+            self.default_power_state
+            not in [
+                "Power saver",
+                "UNKNOWN",
+            ]
+            and self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
+        )
 
     def get_battery_state(self):
         charge_amount = self.battery.percent.value
@@ -143,6 +160,7 @@ class BackgroundProcessManager:
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Critical,
                 # buttons=[("Open Settings", "msg")],
+                # sound=
             )
         )
 
@@ -300,6 +318,32 @@ class BackgroundProcessManager:
             logger.debug(f"Timer passed for event: {event_name}")
         return out
 
+    def send_power_state_changed_message(self):
+        logger.info("Sending power state changed message")
+        self.notification_queue.put_nowait(
+            dict(
+                title="⚡ Power Mode Changed",
+                message="Your laptop has been switched to Power Saver mode to extend battery life.",
+                icon="yes",
+                timeout=NOTIFICATION_TIMEOUT,
+                urgency=Urgency.Normal,
+            )
+        )
+
+    def send_power_state_reset_message(self):
+        logger.info("Sending power state reset message")
+        # Use the configured default power plan for the message
+        default_power_plan = self.config["PROC_SETTINGS"]["default_power_plan"]
+        self.notification_queue.put_nowait(
+            dict(
+                title="⚡ Power Mode Restored",
+                message=f"Your laptop has been restored to {default_power_plan} mode as battery level has improved.",
+                icon="yes",
+                timeout=NOTIFICATION_TIMEOUT,
+                urgency=Urgency.Normal,
+            )
+        )
+
     def update(self):
         try:
             self.battery.refresh()
@@ -307,7 +351,6 @@ class BackgroundProcessManager:
             logger.debug(
                 f"Battery state: {self.current_battery_state}, Charger state: {self.current_charger_state}"
             )
-
 
             if self.battery.state != self.current_charger_state:
                 new_state = self.battery.state
@@ -349,13 +392,78 @@ class BackgroundProcessManager:
                 ] and self.reminder_time_passed("min", pause_time):
                     self.send_charge_reminder()
 
+            if self.can_change_power_state:
+                if (
+                    self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
+                    is not None
+                    and not self.power_state_changed
+                ):
+                    charge_amount = self.battery.percent.value
+
+                    if (
+                        charge_amount
+                        <= self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
+                    ):
+                        powerplan.change_current_scheme_to_powersaver()
+                        self.send_power_state_changed_message()
+                        self.power_state_changed = True
+
+                if (
+                    self.power_state_changed
+                    and self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
+                ):
+                    charge_amount = self.battery.percent.value
+
+                    if (
+                        charge_amount
+                        > self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
+                    ):
+                        # Use the configured default power plan instead of the original power state
+                        default_power_plan = self.config["PROC_SETTINGS"][
+                            "default_power_plan"
+                        ]
+                        if default_power_plan in POWER_STATES:
+                            POWER_STATES[default_power_plan]()
+                        else:
+                            # Fallback to original power state if configured plan is not available
+                            POWER_STATES[self.default_power_state]()
+                        self.send_power_state_reset_message()
+                        self.power_state_changed = False
+
         except Exception as e:
             logger.exception("Error in battery update process")
             raise
 
-
     def update_config(self, config: AppConfig):
         logger.info("Updating background process configuration")
+        self.default_power_state = powerplan.get_current_scheme_name()
+
+        # Only reset power state if we haven't changed it ourselves
+        if not self.power_state_changed:
+            try:
+                # Use the configured default power plan instead of current power state
+                default_power_plan = config["PROC_SETTINGS"]["default_power_plan"]
+                if default_power_plan in POWER_STATES:
+                    POWER_STATES[default_power_plan]()
+                    logger.debug(f"Reset power state to: {default_power_plan}")
+                else:
+                    # Fallback to current power state if configured plan is not available
+                    POWER_STATES[self.default_power_state]()
+                    logger.debug(f"Reset power state to: {self.default_power_state}")
+            except KeyError:
+                logger.warning(f"Unknown power state: {self.default_power_state}")
+            except Exception as e:
+                logger.error(f"Failed to reset power state: {e}")
+
+        self.can_change_power_state = (
+            self.default_power_state
+            not in [
+                "Power saver",
+                "UNKNOWN",
+            ]
+            and self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
+        )
+
         self.config = config
         self.send_updated_settings_message(self.critical_notifications_queue)
         logger.debug("Configuration updated successfully")
