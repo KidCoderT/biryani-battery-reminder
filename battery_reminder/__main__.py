@@ -35,14 +35,10 @@ from battery_reminder.src import (
     is_in_startup,
 )
 from battery_reminder.src import Notifier
-from battery_reminder.src import setup_logger
-from async_tkinter_loop import async_mainloop
+from battery_reminder.src import logger
 from ctypes import c_bool
 
 from battery_reminder.src import BackgroundProcessManager
-
-# Initialize logger
-logger = setup_logger()
 
 
 def is_frozen():

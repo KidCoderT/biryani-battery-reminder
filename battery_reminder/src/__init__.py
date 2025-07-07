@@ -15,5 +15,5 @@ from battery_reminder.src.startup_manager import (
     remove_from_startup,
     is_in_startup,
 )
-from battery_reminder.src.logger_config import setup_logger
+from battery_reminder.src.logger_config import logger
 from battery_reminder.src import powerplan

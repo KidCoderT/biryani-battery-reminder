@@ -16,13 +16,12 @@ from typing import Literal
 from batteryinfo import Battery, TimeFormat
 from desktop_notifier import Urgency, Button
 from battery_reminder.src.app_config_manager import (
-    DEFAULT_CONFIG_DATA,
     get_app_name,
     load_config,
     AppConfig,
 )
 from battery_reminder.src.assets_manager import get_emoji
-from battery_reminder.src.logger_config import setup_logger
+from battery_reminder.src.logger_config import logger
 from battery_reminder.src.utils import SingletonMeta
 from battery_reminder.src import powerplan
 
@@ -31,8 +30,6 @@ from multiprocessing.sharedctypes import SynchronizedBase, Value
 from ctypes import c_bool
 
 # Initialize logger
-logger = setup_logger()
-
 NOTIFICATION_TIMEOUT = -1
 
 BATTERY_STATE = {
@@ -57,7 +54,65 @@ POWER_STATES = {
 # CHARGE_TO_100_MSG = "Charge to 100%"
 
 # MESSAGES
-MESSAGES = {}
+MESSAGES = {
+    "welcome_charging": {
+        "title": "Battery Monitor Started!",
+        "body": "You are currently charging your laptop. It's {percentage:.1f}% charged. {time_to_full} until 100% charge!",
+    },
+    "welcome_discharging": {
+        "title": "Battery Monitor Started!",
+        "body": "You have {percentage:.1f}% charge remaining, which amounts to {time_to_empty} of battery life!",
+    },
+    "monitor_started": "Hello! I've started monitoring your battery. {message}",
+    "please_stop_charging_overflow": {
+        "title": "Please STOP Charging",
+        "body": "You are already {percentage:.1f}% Charged!! Any longer and you could ruin your battery! You dont need to charge any further!",
+    },
+    "please_stop_charging_high": {
+        "title": "You dont need to Charge",
+        "body": "You are already {percentage:.1f}% Charged! You dont need to charge any further",
+    },
+    "started_charging": {
+        "title": "Started Charging!",
+        "body": "It will take another {time_to_full} to fully charge! Currently its {percentage:.1f}% full",
+    },
+    "dont_stop_charging": {
+        "title": "Dont Stop Charging!",
+        "body": "You have {time_to_empty} of Charge Left! Currently there is {percentage:.1f}% charge left. You need to charge some more!",
+    },
+    "charger_disconnected": {
+        "title": "Charger Disconnected",
+        "body": "Charging stopped. You have {time_to_empty} of battery life remaining. Current level: {percentage:.1f}%",
+    },
+    "removal_warning": {
+        "title": "{percentage:.1f}% Full",
+        "body": "You should remove the charger now! There is {time_to_full} of time left until full charge! Better to not spoil your battery!",
+    },
+    "overflow_warning_100": {
+        "title": "Please Stop Charging!",
+        "body": "It's 100% charged! To not ruin your computer battery turn off the charger!",
+    },
+    "overflow_warning": {
+        "title": "Please Stop Charging!",
+        "body": "It's {percentage:.1f}% charged! To not ruin your computer battery turn off the charger!",
+    },
+    "charge_reminder": {
+        "title": "Battery too low!",
+        "body": "You have only {percentage:.1f}% battery left which will last for {time_to_empty}. Charge quickly!",
+    },
+    "settings_updated": {
+        "title": "Settings Updated Successfully!",
+        "body": "Your battery monitoring settings have been saved and applied.",
+    },
+    "power_state_changed": {
+        "title": "⚡ Power Mode Changed",
+        "body": "Your laptop has been switched to Power Saver mode to extend battery life.",
+    },
+    "power_state_restored": {
+        "title": "⚡ Power Mode Restored",
+        "body": "Your laptop has been restored to {default_power_plan} mode as battery level has improved.",
+    },
+}
 
 
 class BatteryDataManager(metaclass=SingletonMeta):
@@ -97,13 +152,14 @@ class BackgroundProcessManager:
         self.current_battery_state = BATTERY_STATE["NORMAL"]
         self.timers = {}
 
+        self.config = load_config()
+
         # Power stuff
-        self.default_power_state = powerplan.get_current_scheme_name()
+        self.default_power_state = self.config["PROC_SETTINGS"]["default_power_plan"]
         self.power_state_changed = False
 
         self.notification_queue = notification_queue
         self.critical_notifications_queue = critical_notifications_queue
-        self.config = load_config()
         logger.info("Background process manager initialized successfully")
 
         self.can_change_power_state = (
@@ -148,31 +204,36 @@ class BackgroundProcessManager:
     def send_welcome_message(self):
         logger.info("Sending welcome message")
         if self.is_charging:
-            message = f"You are currently charging your laptop. It's {self.percentage:.1f}% charged. {self.time_to_full} until 100% charge!"
+            msg = MESSAGES["welcome_charging"]
+            title = msg["title"]
+            body = msg["body"].format(
+                percentage=self.percentage, time_to_full=self.time_to_full
+            )
         else:
-            message = f"You have {self.percentage:.1f}% charge remaining, which amounts to {self.time_to_empty} of battery life!"
-
+            msg = MESSAGES["welcome_discharging"]
+            title = msg["title"]
+            body = msg["body"].format(
+                percentage=self.percentage, time_to_empty=self.time_to_empty
+            )
         self.notification_queue.put_nowait(
             dict(
-                title="Battery Monitor Started!",
-                message="Hello! I've started monitoring your battery. " + message,
+                title=title,
+                message=body,
                 icon="plain",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Critical,
-                # buttons=[("Open Settings", "msg")],
-                # sound=
             )
         )
-
         logger.debug("Welcome message sent successfully")
 
     def send_charging_message(self):
         logger.info("Sending charging message")
         if self.current_battery_state == BATTERY_STATE["OVERLFLOW"]:
+            msg = MESSAGES["please_stop_charging_overflow"]
             self.notification_queue.put_nowait(
                 dict(
-                    title="Please STOP Charging",
-                    message=f"You are already {self.percentage:.1f}% Charged!! Any longer and you could ruin your battery! You dont need to charge any further!",
+                    title=msg["title"],
+                    message=msg["body"].format(percentage=self.percentage),
                     icon="too-much-2",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Critical,
@@ -180,10 +241,11 @@ class BackgroundProcessManager:
             )
             self.reminder_time_passed("high", 0, True)
         elif self.current_battery_state == BATTERY_STATE["HIGH"]:
+            msg = MESSAGES["please_stop_charging_high"]
             self.notification_queue.put_nowait(
                 dict(
-                    title="You dont need to Charge",
-                    message=f"You are already {self.percentage:.1f}% Charged! You dont need to charge any further",
+                    title=msg["title"],
+                    message=msg["body"].format(percentage=self.percentage),
                     icon="hehe",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Normal,
@@ -191,25 +253,31 @@ class BackgroundProcessManager:
             )
             self.reminder_time_passed("high", 0, True)
         elif self.config["PROC_SETTINGS"]["alert_when_charger_plugged"]:
+            msg = MESSAGES["started_charging"]
             self.notification_queue.put_nowait(
                 dict(
-                    title="Started Charging!",
-                    message=f"It will take another {self.time_to_full or ''} to fully charge! Currently its {self.percentage:.1f}% full",
+                    title=msg["title"],
+                    message=msg["body"].format(
+                        time_to_full=self.time_to_full or "", percentage=self.percentage
+                    ),
                     icon="happy",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Normal,
                 )
             )
-
         logger.debug("Charging message sent successfully")
 
     def send_discharging_message(self):
         logger.info("Sending discharging message")
         if self.current_battery_state == BATTERY_STATE["LOW"]:
+            msg = MESSAGES["dont_stop_charging"]
             self.notification_queue.put_nowait(
                 dict(
-                    title="Dont Stop Charging!",
-                    message=f"You have {self.time_to_empty or ''} of Charge Left! Currently there is {self.percentage:.1f}% charge left. You need to charge some more!",
+                    title=msg["title"],
+                    message=msg["body"].format(
+                        time_to_empty=self.time_to_empty or "",
+                        percentage=self.percentage,
+                    ),
                     icon="oh-no",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Critical,
@@ -217,10 +285,14 @@ class BackgroundProcessManager:
             )
             self.reminder_time_passed("min", 0, True)
         elif self.config["PROC_SETTINGS"]["alert_when_charger_removed"]:
+            msg = MESSAGES["charger_disconnected"]
             self.notification_queue.put_nowait(
                 dict(
-                    title="Charger Disconnected",
-                    message=f"Charging stopped. You have {self.time_to_empty or 'unknown time'} of battery life remaining. Current level: {self.percentage:.1f}%",
+                    title=msg["title"],
+                    message=msg["body"].format(
+                        time_to_empty=self.time_to_empty or "unknown time",
+                        percentage=self.percentage,
+                    ),
                     icon="happy",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Normal,
@@ -230,70 +302,75 @@ class BackgroundProcessManager:
 
     def send_removal_warning(self):
         logger.info("Sending removal warning")
+        msg = MESSAGES["removal_warning"]
         self.notification_queue.put_nowait(
             dict(
-                title=f"Its {self.percentage:.1f}% Full",
-                message=f"You should remove the charger now! There is {self.time_to_full or ''} of time left until full charge! Better to not spoil your battery!",
+                title=msg["title"].format(percentage=self.percentage),
+                message=msg["body"].format(
+                    time_to_full=self.time_to_full or "", percentage=self.percentage
+                ),
                 icon="perfect",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Normal,
             )
         )
-
         logger.debug("Removal warning sent successfully")
 
     def send_overflow_warning(self):
         logger.info("Sending overflow warning")
         if self.percentage >= 100:
+            msg = MESSAGES["overflow_warning_100"]
             self.notification_queue.put_nowait(
                 dict(
-                    title="Please Stop Charging!",
-                    message="It's 100% charged! To not ruin your computer battery turn off the charger!",
+                    title=msg["title"],
+                    message=msg["body"],
                     icon="too-much",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Critical,
                 )
             )
         else:
+            msg = MESSAGES["overflow_warning"]
             self.notification_queue.put_nowait(
                 dict(
-                    title="Please Stop Charging!",
-                    message=f"It's {self.percentage:.1f}% charged! To not ruin your computer battery turn off the charger!",
+                    title=msg["title"],
+                    message=msg["body"].format(percentage=self.percentage),
                     icon="too-much",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Critical,
                 )
             )
-
         logger.debug("Overflow warning sent successfully")
 
     def send_charge_reminder(self):
         logger.info("Sending charge reminder")
+        msg = MESSAGES["charge_reminder"]
         self.notification_queue.put_nowait(
             dict(
-                title="Battery too low!",
-                message=f"You have only {self.percentage:.1f}% battery left which will last for {self.time_to_empty}. Charge quickly!",
+                title=msg["title"],
+                message=msg["body"].format(
+                    percentage=self.percentage, time_to_empty=self.time_to_empty
+                ),
                 icon="oh-no",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Critical,
             )
         )
-
         logger.debug("Charge reminder sent successfully")
 
     @staticmethod
     def send_updated_settings_message(critical_notifications_queue):
         logger.info("Sending settings update message")
+        msg = MESSAGES["settings_updated"]
         critical_notifications_queue.put_nowait(
             dict(
-                title="Settings Updated Successfully!",
-                message="Your battery monitoring settings have been saved and applied.",
+                title=msg["title"],
+                message=msg["body"],
                 icon="yes",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Normal,
             )
         )
-
         logger.debug("Settings update message sent successfully")
 
     def reminder_time_passed(
@@ -320,10 +397,11 @@ class BackgroundProcessManager:
 
     def send_power_state_changed_message(self):
         logger.info("Sending power state changed message")
+        msg = MESSAGES["power_state_changed"]
         self.notification_queue.put_nowait(
             dict(
-                title="⚡ Power Mode Changed",
-                message="Your laptop has been switched to Power Saver mode to extend battery life.",
+                title=msg["title"],
+                message=msg["body"],
                 icon="yes",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Normal,
@@ -332,12 +410,12 @@ class BackgroundProcessManager:
 
     def send_power_state_reset_message(self):
         logger.info("Sending power state reset message")
-        # Use the configured default power plan for the message
         default_power_plan = self.config["PROC_SETTINGS"]["default_power_plan"]
+        msg = MESSAGES["power_state_restored"]
         self.notification_queue.put_nowait(
             dict(
-                title="⚡ Power Mode Restored",
-                message=f"Your laptop has been restored to {default_power_plan} mode as battery level has improved.",
+                title=msg["title"],
+                message=msg["body"].format(default_power_plan=default_power_plan),
                 icon="yes",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Normal,
@@ -456,12 +534,12 @@ class BackgroundProcessManager:
                 logger.error(f"Failed to reset power state: {e}")
 
         self.can_change_power_state = (
-            self.default_power_state
+            config["PROC_SETTINGS"]["default_power_plan"]
             not in [
                 "Power saver",
                 "UNKNOWN",
             ]
-            and self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
+            and config["PROC_SETTINGS"]["save_power_state_at_percent"]
         )
 
         self.config = config

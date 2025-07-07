@@ -2,9 +2,7 @@
 # Tejas (Updated this)"
 
 import subprocess
-import logging
-
-logger = logging.getLogger(__name__)
+from battery_reminder.src.logger_config import logger
 
 
 def get_current_scheme_name():

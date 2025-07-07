@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Biryani Battery Reminder"
-#define MyAppVersion "0.9.5"
+#define MyAppVersion "0.9.8"
 #define MyAppPublisher "Tejas, Inc"
 #define MyAppURL "https://www.example.com/"
 #define MyAppExeName "biryani-battery-reminder.exe"

@@ -9,6 +9,7 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 # FITNESS FOR A PARTICULAR PURPOSE.  See the LICENSE file for more details.
 
+import urllib
 import tkinter as tk
 from typing import Any, Dict, Literal
 from PIL import Image, ImageTk
@@ -29,13 +30,9 @@ from battery_reminder.src.app_config_manager import (
     load_config,
     save_config,
 )
-from battery_reminder.src.logger_config import setup_logger
+from battery_reminder.src.logger_config import logger
 from battery_reminder.src.startup_manager import add_to_startup, remove_from_startup
 from battery_reminder.src.assets_manager import get_tkinter_icon
-
-# Initialize logger
-logger = setup_logger()
-
 
 class AppSettingUI:
     """Main application UI class for Battery Reminder."""
@@ -433,6 +430,10 @@ class AppSettingUI:
                 wrap=False,
             )
             spinbox.pack(side=RIGHT)
+            # Disable mouse wheel changing value
+            spinbox.bind("<MouseWheel>", lambda e: "break")
+            spinbox.bind("<Button-4>", lambda e: "break")  # Linux scroll up
+            spinbox.bind("<Button-5>", lambda e: "break")  # Linux scroll down
             self.field_errors[spinbox] = False  # Track initial error state
 
             # Warning label
@@ -532,6 +533,10 @@ class AppSettingUI:
                 wrap=False,
             )
             minutes_spinbox.grid(row=0, column=1, sticky=E, padx=(0, 2))
+            # Disable mouse wheel changing value
+            minutes_spinbox.bind("<MouseWheel>", lambda e: "break")
+            minutes_spinbox.bind("<Button-4>", lambda e: "break")
+            minutes_spinbox.bind("<Button-5>", lambda e: "break")
             min_label = ttk.Label(time_frame, text="min", width=3, anchor="e")
             min_label.grid(row=0, column=2, sticky=E, padx=(2, 8))
 
@@ -546,6 +551,10 @@ class AppSettingUI:
                 wrap=False,
             )
             seconds_spinbox.grid(row=0, column=3, sticky=E, padx=(0, 2))
+            # Disable mouse wheel changing value
+            seconds_spinbox.bind("<MouseWheel>", lambda e: "break")
+            seconds_spinbox.bind("<Button-4>", lambda e: "break")
+            seconds_spinbox.bind("<Button-5>", lambda e: "break")
             sec_label = ttk.Label(time_frame, text="sec", width=3, anchor="e")
             sec_label.grid(
                 row=0,
@@ -833,7 +842,7 @@ class AppSettingUI:
 
         # Spinbox
         self.power_save_percent_var = tk.IntVar(
-            value=self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"] or 55
+            value=self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"] or 20
         )
         self.power_save_percent_spinbox = ttk.Spinbox(
             power_save_input_frame,
@@ -844,6 +853,10 @@ class AppSettingUI:
             wrap=False,
         )
         self.power_save_percent_spinbox.pack(side=RIGHT)
+        # Disable mouse wheel changing value
+        self.power_save_percent_spinbox.bind("<MouseWheel>", lambda e: "break")
+        self.power_save_percent_spinbox.bind("<Button-4>", lambda e: "break")
+        self.power_save_percent_spinbox.bind("<Button-5>", lambda e: "break")
         self.field_errors[self.power_save_percent_spinbox] = (
             False  # Track initial error state
         )
@@ -997,6 +1010,81 @@ class AppSettingUI:
         default_power_plan_combobox.grid(
             row=4, column=1, sticky=E, padx=10, pady=(5, 15)
         )
+        # Disable mouse wheel changing value
+        default_power_plan_combobox.bind("<MouseWheel>", lambda e: "break")
+        default_power_plan_combobox.bind("<Button-4>", lambda e: "break")
+        default_power_plan_combobox.bind("<Button-5>", lambda e: "break")
+        self.field_errors[default_power_plan_combobox] = (
+            False  # Track initial error state
+        )
+
+        # Warning label
+        self.power_save_warning = ttk.Label(
+            power_save_labelframe,
+            text="Warning: Value should be between 10% and 50%",
+            foreground="red",
+            font=("Arial", 9),
+        )
+        self.power_save_warning.grid(
+            row=5, column=0, columnspan=2, sticky=W, padx=10, pady=(0, 5)
+        )
+        self.power_save_warning.grid_remove()
+
+        # Validation for power save percentage
+        def validate_power_save_percent(*args):
+            try:
+                value = self.default_power_plan_var.get()
+                is_error = value not in powerplan.get_available_power_plans()
+                was_error = self.field_errors[default_power_plan_combobox]
+
+                if is_error and not was_error:
+                    self.error_count += 1
+                    self.field_errors[default_power_plan_combobox] = True
+                    self.power_save_warning.grid()
+                    default_power_plan_combobox.configure(style="Error.TSpinbox")
+                elif not is_error and was_error:
+                    self.error_count -= 1
+                    self.field_errors[default_power_plan_combobox] = False
+                    self.power_save_warning.grid_remove()
+                    default_power_plan_combobox.configure(style="default.TSpinbox")
+
+                # Update error message display
+                if self.error_count > 0:
+                    self.error_label.config(
+                        text=f"Errors: {self.error_count} remaining"
+                    )
+                else:
+                    self.error_label.config(text="")
+
+                # Update button states
+                self._update_button_states()
+
+            except tk.TclError:
+                # Handle cases where input is not a valid integer temporarily
+                is_error = True
+                was_error = self.field_errors[default_power_plan_combobox]
+                if is_error and not was_error:
+                    self.error_count += 1
+                    self.field_errors[default_power_plan_combobox] = True
+                    self.power_save_warning.grid()
+                    default_power_plan_combobox.configure(style="Error.TSpinbox")
+
+                # Update error message display even for invalid input during typing
+                if self.error_count > 0:
+                    self.error_label.config(
+                        text=f"Errors: {self.error_count} remaining"
+                    )
+                else:
+                    self.error_label.config(text="")
+
+                # Update button states
+                self._update_button_states()
+
+                self.default_power_plan_var.trace_add(
+                    "write", validate_power_save_percent
+                )
+
+        self.default_power_plan_var.trace_add("write", on_variable_change)
 
         default_power_plan_tooltip = (
             "The power plan to restore to when battery level improves"
@@ -1202,7 +1290,7 @@ class AppSettingUI:
                 is not None
             )
             self.power_save_percent_var.set(
-                self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"] or 55
+                self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"] or 20
             )
             self.notify_power_change_var.set(
                 self.saved_data["PROC_SETTINGS"]["remind_when_power_state_changes"]
@@ -1516,7 +1604,7 @@ class AppSettingUI:
             )
             self.power_save_percent_var.set(
                 get_default_config()["PROC_SETTINGS"]["save_power_state_at_percent"]
-                or 55
+                or 20
             )
             self.notify_power_change_var.set(
                 get_default_config()["PROC_SETTINGS"]["remind_when_power_state_changes"]

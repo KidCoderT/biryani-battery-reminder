@@ -60,3 +60,8 @@ def setup_logger():
     )
 
     return logger
+
+
+logger = setup_logger()
+
+__all__ = ["logger", "setup_logger"]

@@ -16,11 +16,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Literal, TypedDict
 
-from battery_reminder.src.logger_config import setup_logger
+from battery_reminder.src.logger_config import logger
 from battery_reminder.src.powerplan import get_current_scheme_name
-
-# Initialize logger
-logger = setup_logger()
 
 APP_NAME = "biryani-battery-reminder"
 CONFIG_FILE_NAME = (
@@ -41,7 +38,7 @@ Expected structure for the config.json file:
         "high_charge_percent": 95,
         "remind_low_charge_time": 5,
         "remind_high_charge_time": 10,
-        "save_power_state_at_percent": null|number,
+        "save_power_state_at_percent": None,
         "remind_when_power_state_changes": true,
         "default_power_plan": "Balanced",
     },
@@ -100,7 +97,7 @@ DEFAULT_CONFIG_DATA: AppConfig = {
         "remind_low_charge_time": 1 * 60 + 30,
         "remind_high_charge_time": 3 * 60,
         "remind_overflow_charge_time": 1 * 60,
-        "save_power_state_at_percent": 20,
+        "save_power_state_at_percent": None,
         "remind_when_power_state_changes": True,
         "default_power_plan": get_current_scheme_name(),
     },

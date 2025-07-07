@@ -15,6 +15,7 @@ import random
 from pathlib import Path
 from PIL import Image
 import typing
+from battery_reminder.src.logger_config import logger
 
 if getattr(sys, "frozen", False):
     # PyInstaller sets _MEIPASS, cx_Freeze does not

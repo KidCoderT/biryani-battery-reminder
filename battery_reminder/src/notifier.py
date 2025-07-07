@@ -5,9 +5,7 @@ from desktop_notifier import DesktopNotifier, Icon, Urgency, Button
 import multiprocessing
 
 from battery_reminder.src.assets_manager import get_emoji
-from battery_reminder.src.logger_config import setup_logger
-
-logger = setup_logger()
+from battery_reminder.src.logger_config import logger
 
 NOTIFICATION_LIMIT = 5
 
