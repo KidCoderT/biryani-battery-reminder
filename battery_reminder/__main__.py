@@ -24,6 +24,7 @@ from tkinter import messagebox
 from pystray import Icon, Menu, MenuItem
 
 from battery_reminder.src import AppSettingUI
+from battery_reminder.src import BackgroundProcessManager
 from battery_reminder.src import load_config, get_app_name, is_first_run
 from battery_reminder.src import app_icon
 from battery_reminder.src import (
@@ -37,8 +38,6 @@ from battery_reminder.src import (
 from battery_reminder.src import Notifier
 from battery_reminder.src import logger
 from ctypes import c_bool
-
-from battery_reminder.src import BackgroundProcessManager
 
 
 def is_frozen():
@@ -248,46 +247,38 @@ class App:
         logger.info("System tray icon setup complete")
 
     def on_settings_update_callback(self):
-        # if run_on_startup:
-        #     add_to_startup()
-        # else:
-        #     remove_from_startup()
-
         if self.background_process and self.background_process.is_alive():
             self.settings_updated_flag.value = True
         else:
             BackgroundProcessManager.send_updated_settings_message(
                 self.critical_notifications_queue
             )
-        # logger.info(f"Startup setting updated: {}")
 
 
 async def main():
     try:
-        # if is_already_running():
-        #     logger.warning("Another instance is already running")
-        #     messagebox.showwarning(
-        #         "Application Already Running",
-        #         f"{get_app_name()} is already running. Check in your System tray and use the existing instance.",
-        #     )
-        #     sys.exit(0)
+        if is_already_running():
+            logger.warning("Another instance is already running")
+            messagebox.showwarning(
+                "Application Already Running",
+                f"{get_app_name()} is already running. Check in your System tray and use the existing instance.",
+            )
+            sys.exit(0)
 
         logger.info("Starting application...")
         app_instance = App()
 
-        # if app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
-        #     if not is_in_startup():
-        #         add_to_startup()
-        #         logger.info("Startup setting updated: True")
-        #
-        # if not app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
-        #     logger.info("Opening settings on manual launch")
-        #     app_instance.open_settings()
-        #
-        # if is_first_run():
-        #     logger.info("Opening settings for first installation")
-        #     app_instance.open_settings()
-        app_instance.open_settings()
+        if app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
+            if not is_in_startup():
+                add_to_startup()
+                logger.info("Startup setting updated: True")
+
+        if is_first_run():
+            logger.info("Opening settings for first installation")
+            app_instance.open_settings()
+        elif not app_instance.config["PROC_SETTINGS"]["run_on_startup"]:
+            logger.info("Opening settings on manual launch")
+            app_instance.open_settings()
 
         def run_notifier_in_thread():
             loop = asyncio.new_event_loop()

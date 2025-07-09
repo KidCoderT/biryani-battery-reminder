@@ -162,15 +162,6 @@ class BackgroundProcessManager:
         self.critical_notifications_queue = critical_notifications_queue
         logger.info("Background process manager initialized successfully")
 
-        self.can_change_power_state = (
-            self.default_power_state
-            not in [
-                "Power saver",
-                "UNKNOWN",
-            ]
-            and self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
-        )
-
     def get_battery_state(self):
         charge_amount = self.battery.percent.value
         state = BATTERY_STATE["NORMAL"]
@@ -200,6 +191,17 @@ class BackgroundProcessManager:
     @property
     def is_charging(self):
         return self.battery.state == "Charging"
+
+    @property
+    def can_change_power_state(self):
+        return (
+            self.default_power_state
+            not in [
+                "Power saver",
+                "UNKNOWN",
+            ]
+            and self.config["PROC_SETTINGS"]["save_power_state_at_percent"] is not None
+        )
 
     def send_welcome_message(self):
         logger.info("Sending welcome message")
@@ -402,7 +404,7 @@ class BackgroundProcessManager:
             dict(
                 title=msg["title"],
                 message=msg["body"],
-                icon="yes",
+                icon="plain",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Normal,
             )
@@ -471,40 +473,34 @@ class BackgroundProcessManager:
                     self.send_charge_reminder()
 
             if self.can_change_power_state:
-                if (
+                assert (
                     self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
                     is not None
-                    and not self.power_state_changed
-                ):
+                )  # cranky linter
+
+                if not self.power_state_changed:
                     charge_amount = self.battery.percent.value
 
                     if (
                         charge_amount
                         <= self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
                     ):
-                        powerplan.change_current_scheme_to_powersaver()
-                        self.send_power_state_changed_message()
+                        if powerplan.get_current_scheme_name() == "Power saver":
+                            logger.debug("Power saver mode already active")
+                        else:
+                            powerplan.change_current_scheme_to_powersaver()
+                            self.send_power_state_changed_message()
+
                         self.power_state_changed = True
 
-                if (
-                    self.power_state_changed
-                    and self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
-                ):
+                else:
                     charge_amount = self.battery.percent.value
 
                     if (
                         charge_amount
                         > self.config["PROC_SETTINGS"]["save_power_state_at_percent"]
                     ):
-                        # Use the configured default power plan instead of the original power state
-                        default_power_plan = self.config["PROC_SETTINGS"][
-                            "default_power_plan"
-                        ]
-                        if default_power_plan in POWER_STATES:
-                            POWER_STATES[default_power_plan]()
-                        else:
-                            # Fallback to original power state if configured plan is not available
-                            POWER_STATES[self.default_power_state]()
+                        POWER_STATES[self.default_power_state]()
                         self.send_power_state_reset_message()
                         self.power_state_changed = False
 
@@ -514,40 +510,35 @@ class BackgroundProcessManager:
 
     def update_config(self, config: AppConfig):
         logger.info("Updating background process configuration")
-        self.default_power_state = powerplan.get_current_scheme_name()
+        self.config = config
+        self.default_power_state = self.config["PROC_SETTINGS"]["default_power_plan"]
 
         # Only reset power state if we haven't changed it ourselves
         if not self.power_state_changed:
             try:
                 # Use the configured default power plan instead of current power state
-                default_power_plan = config["PROC_SETTINGS"]["default_power_plan"]
-                if default_power_plan in POWER_STATES:
-                    POWER_STATES[default_power_plan]()
-                    logger.debug(f"Reset power state to: {default_power_plan}")
-                else:
-                    # Fallback to current power state if configured plan is not available
-                    POWER_STATES[self.default_power_state]()
-                    logger.debug(f"Reset power state to: {self.default_power_state}")
+                POWER_STATES[self.default_power_state]()
             except KeyError:
                 logger.warning(f"Unknown power state: {self.default_power_state}")
             except Exception as e:
                 logger.error(f"Failed to reset power state: {e}")
 
-        self.can_change_power_state = (
-            config["PROC_SETTINGS"]["default_power_plan"]
-            not in [
-                "Power saver",
-                "UNKNOWN",
-            ]
-            and config["PROC_SETTINGS"]["save_power_state_at_percent"]
-        )
-
-        self.config = config
         self.send_updated_settings_message(self.critical_notifications_queue)
         logger.debug("Configuration updated successfully")
 
 
-# atexit.register(lambda: asyncio.run(clear_all_messages()))
+def reset_power_state():
+    logger.info("Resetting power state")
+
+    config = load_config()
+    default_power_plan = config["PROC_SETTINGS"]["default_power_plan"]
+
+    if default_power_plan in POWER_STATES:
+        POWER_STATES[default_power_plan]()
+        logger.debug(f"Reset power state to: {default_power_plan}")
+
+
+atexit.register(lambda: reset_power_state())
 
 
 def main(

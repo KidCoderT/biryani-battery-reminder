@@ -34,6 +34,7 @@ from battery_reminder.src.logger_config import logger
 from battery_reminder.src.startup_manager import add_to_startup, remove_from_startup
 from battery_reminder.src.assets_manager import get_tkinter_icon
 
+
 class AppSettingUI:
     """Main application UI class for Battery Reminder."""
 
@@ -96,6 +97,7 @@ class AppSettingUI:
         self._create_main_layout()
         self._create_header()
         self._create_notebook()
+
         if hide_gui_on_close:
             self.master.protocol(
                 "WM_DELETE_WINDOW", self.on_closing
@@ -114,8 +116,28 @@ class AppSettingUI:
         logger.info("Settings GUI closing...")
         # When the user closes the GUI, hide it instead of destroying it
         # so the system tray icon can still bring it back.
-        self.master.withdraw()
-        logger.info("Settings GUI hidden")
+        # it also checks to see if the data has any changes
+
+        current_data = self.get_current_settings()
+        has_changes = self.has_settings_changed(current_data, ignore_theme=True)
+        has_errors = self.error_count > 0
+
+        if has_changes or has_errors:
+            result = Messagebox.yesno(
+                title="Confirm Close",
+                message="Are you sure you want to close the settings without saving? Any changes will be lost.",
+                parent=self.master,
+            )
+
+            if result == "Yes":
+                self.master.withdraw()
+                self.reset_default(False)
+                logger.info("Settings GUI hidden")
+            else:
+                logger.info("Settings not closed")
+        else:
+            self.master.withdraw()
+            logger.info("Settings GUI hidden")
 
     def _setup_window(self) -> None:
         """Configure the main window properties."""
@@ -1347,13 +1369,6 @@ class AppSettingUI:
                     parent=self.master,
                 )
 
-        # Show notification using Messagebox
-        # Messagebox.ok(
-        #     title="Settings Saved",
-        #     message="Your settings have been successfully updated.",
-        #     parent=self.master,
-        # )
-
         # Update button states
         self._update_button_states()
         logger.info("Settings saved successfully")
@@ -1540,14 +1555,19 @@ class AppSettingUI:
         # self.battery_detail_labels["voltage"].configure(text=data["voltage"])
         # self.battery_detail_labels["temperature"].configure(text=data["temperature"])
 
-    def reset_default(self) -> None:
+    def reset_default(self, check=True) -> None:
         """Reset all settings to their default values."""
         logger.info("Resetting settings to default values...")
         # Show confirmation dialog
-        result = Messagebox.yesno(
-            title="Confirm Reset to Default",
-            message="Are you sure you want to reset all settings to their default values? This cannot be undone.",
-            parent=self.master,
+
+        result = (
+            Messagebox.yesno(
+                title="Confirm Reset to Default",
+                message="Are you sure you want to reset all settings to their default values? This cannot be undone.",
+                parent=self.master,
+            )
+            if check
+            else "Yes"
         )
 
         if result == "Yes":

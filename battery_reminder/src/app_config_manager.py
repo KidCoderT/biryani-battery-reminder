@@ -40,7 +40,7 @@ Expected structure for the config.json file:
         "remind_high_charge_time": 10,
         "save_power_state_at_percent": None,
         "remind_when_power_state_changes": true,
-        "default_power_plan": "Balanced",
+        "default_power_plan": <computer_default>,
     },
     "GUI_SETTINGS": {
         "theme": "system",
@@ -97,7 +97,7 @@ DEFAULT_CONFIG_DATA: AppConfig = {
         "remind_low_charge_time": 1 * 60 + 30,
         "remind_high_charge_time": 3 * 60,
         "remind_overflow_charge_time": 1 * 60,
-        "save_power_state_at_percent": None,
+        "save_power_state_at_percent": 20,
         "remind_when_power_state_changes": True,
         "default_power_plan": get_current_scheme_name(),
     },
