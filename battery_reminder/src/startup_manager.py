@@ -53,10 +53,10 @@ def create_shortcut(shortcut_path, target_path, icon_path=None):
 
 def add_to_startup(shortcut_name=SHORTCUT_NAME, icon_path=None):
     """Add the application to system startup (user-level, no admin required)."""
-    # shortcut_path = get_shortcut_path(shortcut_name)
-    # exe_path = get_exe_path()
-    # create_shortcut(shortcut_path, exe_path, icon_path)
-    # logger.info("Added to startup.")
+    shortcut_path = get_shortcut_path(shortcut_name)
+    exe_path = get_exe_path()
+    create_shortcut(shortcut_path, exe_path, icon_path)
+    logger.info("Added to startup.")
     return True
 
 
@@ -68,8 +68,8 @@ def is_in_startup(shortcut_name=SHORTCUT_NAME):
 
 def remove_from_startup(shortcut_name=SHORTCUT_NAME):
     """Remove the shortcut from the Startup folder."""
-    # shortcut_path = get_shortcut_path(shortcut_name)
-    # if os.path.exists(shortcut_path):
-    #     os.remove(shortcut_path)
-    #     logger.info("Removed from startup.")
+    shortcut_path = get_shortcut_path(shortcut_name)
+    if os.path.exists(shortcut_path):
+        os.remove(shortcut_path)
+        logger.info("Removed from startup.")
     return True

@@ -1,8 +1,34 @@
-# __author__ = "Temal
+# __author__ = "Temal" @ https://github.com/temal32/powerplan
 # Tejas (Updated this)"
 
 import subprocess
+from typing import Literal
 from battery_reminder.src.logger_config import logger
+
+
+def _check_ultimate_performance_exists() -> bool:
+    """Check if the Ultimate Performance power plan exists on the system.
+
+    Returns:
+        bool: True if Ultimate Performance plan exists, False otherwise
+    """
+    try:
+        # Use powercfg /list to get all available power schemes
+        output = subprocess.check_output(["powercfg", "/list"], stderr=subprocess.PIPE)
+
+        # Check if Ultimate Performance GUID exists in the output
+        ultimate_performance_guid = b"e9a42b02-d5df-448d-aa00-03f14749eb61"
+        return ultimate_performance_guid in output
+
+    except subprocess.CalledProcessError as error:
+        logger.error(f"Failed to list power schemes: {error}")
+        return False
+    except FileNotFoundError:
+        logger.error("powercfg command not found - this feature is Windows-only")
+        return False
+    except Exception as error:
+        logger.error(f"Unexpected error checking for Ultimate Performance: {error}")
+        return False
 
 
 def get_current_scheme_name():
@@ -119,7 +145,14 @@ def change_current_scheme_to_high():
         return False
 
 
-def set_default_power_plan(power_plan_name: str) -> bool:
+def set_default_power_plan(
+    power_plan_name: Literal[
+        "Power saver",
+        "Balanced",
+        "High performance",
+        "Ultimate performance",
+    ],
+) -> bool:
     """Set the default power plan.
 
     Args:
@@ -169,4 +202,15 @@ def get_available_power_plans() -> list[str]:
     Returns:
         list[str]: List of available power plan names
     """
-    return ["Power saver", "Balanced", "High performance"]
+    available_plans = ["Power saver", "Balanced", "High performance"]
+
+    # Check if Ultimate Performance exists and add it to the list
+    if _check_ultimate_performance_exists():
+        available_plans.append("Ultimate performance")
+        logger.debug(
+            "Ultimate Performance power plan found and added to available plans"
+        )
+    else:
+        logger.debug("Ultimate Performance power plan not found on this system")
+
+    return available_plans

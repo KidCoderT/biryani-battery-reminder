@@ -33,6 +33,7 @@ from battery_reminder.src.app_config_manager import (
 from battery_reminder.src.logger_config import logger
 from battery_reminder.src.startup_manager import add_to_startup, remove_from_startup
 from battery_reminder.src.assets_manager import get_tkinter_icon
+from battery_reminder.src import powerplan
 
 
 class AppSettingUI:
@@ -73,6 +74,7 @@ class AppSettingUI:
         quit_app=lambda: print("quit app"),
         check_bg_proc_stat=lambda: True,
         on_update_callback=lambda: print("settings updated"),
+        on_powerplan_restarted=lambda: print("WORKS AGAIN"),
         hide_gui_on_close=True,
     ) -> None:
         """Initialize the application UI.
@@ -90,6 +92,7 @@ class AppSettingUI:
         self.stop_proc = stop_proc
         self.on_update_callback = on_update_callback
         self.quit_app = quit_app
+        self.notify_powerplan_works_again = on_powerplan_restarted
         self.battery_data_manager = BatteryDataManager()
 
         self._setup_window()
@@ -110,6 +113,7 @@ class AppSettingUI:
 
         self.toggle_theme()
         self._reload_data()
+        self._retry_battery_settings()
         logger.info("Settings GUI initialized successfully")
 
     def on_closing(self):
@@ -304,6 +308,50 @@ class AppSettingUI:
     def _create_form_widgets(self, frame: ttk.Frame) -> None:
         """Create form widgets for the app settings."""
         form_frame = ttk.Frame(frame)
+
+        # Always create button and error label attributes so they exist for __init__ and updates
+        button_error_frame = ttk.Frame(form_frame, padding=(0, 20))
+        self.error_label = ttk.Label(button_error_frame, text="", foreground="red")
+        buttons_frame = ttk.Frame(button_error_frame)
+        self.reset_default_button = ttk.Button(
+            buttons_frame,
+            text="Reset Default",
+            command=self.reset_default,
+            style="secondary.TButton",
+            state="disabled",
+        )
+        self.reset_button = ttk.Button(
+            buttons_frame,
+            text="Reset",
+            command=self.reset_settings,
+            style="danger.TButton",
+            state="disabled",
+        )
+        self.save_button = ttk.Button(
+            buttons_frame,
+            text="Save",
+            command=self.save_settings,
+            style="success.TButton",
+            state="disabled",
+        )
+
+        # Always create these variables so get_current_settings never fails
+        import tkinter as tk
+
+        self.enable_power_save_var = tk.BooleanVar(
+            value=self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"]
+            is not None
+        )
+        self.power_save_percent_var = tk.IntVar(
+            value=self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"] or 20
+        )
+        self.notify_power_change_var = tk.BooleanVar(
+            value=self.saved_data["PROC_SETTINGS"]["remind_when_power_state_changes"]
+        )
+        self.default_power_plan_var = tk.StringVar(
+            value=self.saved_data["PROC_SETTINGS"]["default_power_plan"]
+        )
+        # ToolTips can be added after packing if needed
 
         # Initialize error tracking attributes
         self.error_count = 0
@@ -802,372 +850,367 @@ class AppSettingUI:
         ToolTip(overflow_interval_frame, overflow_interval_tooltip, bootstyle="danger")
         ToolTip(overflow_interval_label, overflow_interval_tooltip, bootstyle="danger")
 
-        # Power Save Mode Settings
-        power_save_labelframe = ttk.LabelFrame(
-            form_frame,
-            text="Power Save Mode Settings",
-            style="secondary",
-            padding=(10, 10),
-        )
-        power_save_labelframe.grid_columnconfigure(1, weight=1)  # Input column expands
-        power_save_labelframe.grid_columnconfigure(0, weight=0)  # Label column
-        power_save_labelframe.pack(
-            fill="x",
-            pady=(0, 20),
-        )
+        # Power Save Mode Settings (only if power plan is not UNKNOWN)
 
-        # Enable Power Save Mode
-        enable_power_save_label = ttk.Label(
-            power_save_labelframe, text="Enable Power Save Mode:"
-        )
-        enable_power_save_label.grid(row=0, column=0, sticky=W, padx=10, pady=(5, 15))
-        self.enable_power_save_var = tk.BooleanVar(
-            value=self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"]
-            is not None
-        )
-        self.enable_power_save_var.trace_add("write", on_variable_change)
-        enable_power_save_check = ttk.Checkbutton(
-            power_save_labelframe,
-            variable=self.enable_power_save_var,
-            style="primary-round-toggle",
-        )
-        enable_power_save_check.grid(row=0, column=1, sticky=E, padx=10, pady=(5, 15))
-        ToolTip(
-            enable_power_save_check,
-            "Automatically switch to Power Saver mode when battery is low",
-            bootstyle="info",
-        )
-        ToolTip(
-            enable_power_save_label,
-            "Automatically switch to Power Saver mode when battery is low",
-            bootstyle="info",
-        )
+        current_powerplan = self.saved_data["PROC_SETTINGS"]["default_power_plan"]
+        if current_powerplan != "UNKNOWN":
+            # --- BEGIN Power Save Mode Settings Block ---
+            power_save_labelframe = ttk.LabelFrame(
+                form_frame,
+                text="Power Save Mode Settings",
+                style="secondary",
+                padding=(10, 10),
+            )
+            power_save_labelframe.grid_columnconfigure(
+                1, weight=1
+            )  # Input column expands
+            power_save_labelframe.grid_columnconfigure(0, weight=0)  # Label column
+            power_save_labelframe.pack(
+                fill="x",
+                pady=(0, 20),
+            )
 
-        # Power Save Mode Percentage
-        power_save_percent_label = ttk.Label(
-            power_save_labelframe, text="Power Save Mode Threshold (%):"
-        )
-        power_save_percent_label.grid(row=1, column=0, sticky=W, padx=10, pady=(5, 15))
+            # Enable Power Save Mode
+            enable_power_save_label = ttk.Label(
+                power_save_labelframe, text="Enable Power Save Mode:"
+            )
+            enable_power_save_label.grid(
+                row=0, column=0, sticky=W, padx=10, pady=(5, 15)
+            )
+            self.enable_power_save_var.trace_add("write", on_variable_change)
+            enable_power_save_check = ttk.Checkbutton(
+                power_save_labelframe,
+                variable=self.enable_power_save_var,
+                style="primary-round-toggle",
+            )
+            enable_power_save_check.grid(
+                row=0, column=1, sticky=E, padx=10, pady=(5, 15)
+            )
+            ToolTip(
+                enable_power_save_check,
+                "Automatically switch to Power Saver mode when battery is low",
+                bootstyle="info",
+            )
+            ToolTip(
+                enable_power_save_label,
+                "Automatically switch to Power Saver mode when battery is low",
+                bootstyle="info",
+            )
 
-        # Input frame for right alignment
-        power_save_input_frame = ttk.Frame(power_save_labelframe)
-        power_save_input_frame.grid(
-            row=1, column=1, sticky=EW, padx=(0, 10), pady=(5, 15)
-        )
-        power_save_input_frame.grid_columnconfigure(0, weight=1)
+            # Power Save Mode Percentage
+            power_save_percent_label = ttk.Label(
+                power_save_labelframe, text="Power Save Mode Threshold (%):"
+            )
+            power_save_percent_label.grid(
+                row=1, column=0, sticky=W, padx=10, pady=(5, 15)
+            )
 
-        # Icon
-        power_save_icon_label = ttk.Label(
-            power_save_input_frame, text="🔋", font=("Arial", 12)
-        )
-        power_save_icon_label.pack(side=RIGHT, padx=(5, 0))
+            # Input frame for right alignment
+            power_save_input_frame = ttk.Frame(power_save_labelframe)
+            power_save_input_frame.grid(
+                row=1, column=1, sticky=EW, padx=(0, 10), pady=(5, 15)
+            )
+            power_save_input_frame.grid_columnconfigure(0, weight=1)
 
-        # Spinbox
-        self.power_save_percent_var = tk.IntVar(
-            value=self.saved_data["PROC_SETTINGS"]["save_power_state_at_percent"] or 20
-        )
-        self.power_save_percent_spinbox = ttk.Spinbox(
-            power_save_input_frame,
-            from_=10,
-            to=50,
-            textvariable=self.power_save_percent_var,
-            width=5,
-            wrap=False,
-        )
-        self.power_save_percent_spinbox.pack(side=RIGHT)
-        # Disable mouse wheel changing value
-        self.power_save_percent_spinbox.bind("<MouseWheel>", lambda e: "break")
-        self.power_save_percent_spinbox.bind("<Button-4>", lambda e: "break")
-        self.power_save_percent_spinbox.bind("<Button-5>", lambda e: "break")
-        self.field_errors[self.power_save_percent_spinbox] = (
-            False  # Track initial error state
-        )
+            # Icon
+            power_save_icon_label = ttk.Label(
+                power_save_input_frame, text="🔋", font=("Arial", 12)
+            )
+            power_save_icon_label.pack(side=RIGHT, padx=(5, 0))
 
-        # Warning label
-        self.power_save_warning = ttk.Label(
-            power_save_labelframe,
-            text="Warning: Value should be between 10% and 50%",
-            foreground="red",
-            font=("Arial", 9),
-        )
-        self.power_save_warning.grid(
-            row=2, column=0, columnspan=2, sticky=W, padx=10, pady=(0, 5)
-        )
-        self.power_save_warning.grid_remove()
+            # Spinbox
+            self.power_save_percent_spinbox = ttk.Spinbox(
+                power_save_input_frame,
+                from_=10,
+                to=50,
+                textvariable=self.power_save_percent_var,
+                width=5,
+                wrap=False,
+            )
+            self.power_save_percent_spinbox.pack(side=RIGHT)
+            # Disable mouse wheel changing value
+            self.power_save_percent_spinbox.bind("<MouseWheel>", lambda e: "break")
+            self.power_save_percent_spinbox.bind("<Button-4>", lambda e: "break")
+            self.power_save_percent_spinbox.bind("<Button-5>", lambda e: "break")
+            self.field_errors[self.power_save_percent_spinbox] = (
+                False  # Track initial error state
+            )
 
-        # Validation for power save percentage
-        def validate_power_save_percent(*args):
-            try:
-                value = self.power_save_percent_var.get()
-                is_error = value < 10 or value > 50
-                was_error = self.field_errors[self.power_save_percent_spinbox]
+            # Warning label
+            self.power_save_warning = ttk.Label(
+                power_save_labelframe,
+                text="Warning: Value should be between 10% and 50%",
+                foreground="red",
+                font=("Arial", 9),
+            )
+            self.power_save_warning.grid(
+                row=2, column=0, columnspan=2, sticky=W, padx=10, pady=(0, 5)
+            )
+            self.power_save_warning.grid_remove()
 
-                if is_error and not was_error:
-                    self.error_count += 1
-                    self.field_errors[self.power_save_percent_spinbox] = True
-                    self.power_save_warning.grid()
-                    self.power_save_percent_spinbox.configure(style="Error.TSpinbox")
-                elif not is_error and was_error:
-                    self.error_count -= 1
-                    self.field_errors[self.power_save_percent_spinbox] = False
-                    self.power_save_warning.grid_remove()
-                    self.power_save_percent_spinbox.configure(style="default.TSpinbox")
+            # Validation for power save percentage (spinbox)
+            def validate_power_save_percent_spinbox_main(*args):
+                try:
+                    value = self.power_save_percent_var.get()
+                    is_error = value < 10 or value > 50
+                    was_error = self.field_errors[self.power_save_percent_spinbox]
 
-                # Update error message display
-                if self.error_count > 0:
-                    self.error_label.config(
-                        text=f"Errors: {self.error_count} remaining"
+                    if is_error and not was_error:
+                        self.error_count += 1
+                        self.field_errors[self.power_save_percent_spinbox] = True
+                        self.power_save_warning.grid()
+                        self.power_save_percent_spinbox.configure(
+                            style="Error.TSpinbox"
+                        )
+                    elif not is_error and was_error:
+                        self.error_count -= 1
+                        self.field_errors[self.power_save_percent_spinbox] = False
+                        self.power_save_warning.grid_remove()
+                        self.power_save_percent_spinbox.configure(
+                            style="default.TSpinbox"
+                        )
+
+                    # Update error message display
+                    if self.error_count > 0:
+                        self.error_label.config(
+                            text=f"Errors: {self.error_count} remaining"
+                        )
+                    else:
+                        self.error_label.config(text="")
+
+                    # Update button states
+                    self._update_button_states()
+
+                except tk.TclError:
+                    # Handle cases where input is not a valid integer temporarily
+                    is_error = True
+                    was_error = self.field_errors[self.power_save_percent_spinbox]
+                    if is_error and not was_error:
+                        self.error_count += 1
+                        self.field_errors[self.power_save_percent_spinbox] = True
+                        self.power_save_warning.grid()
+                        self.power_save_percent_spinbox.configure(
+                            style="Error.TSpinbox"
+                        )
+
+                    # Update error message display even for invalid input during typing
+                    if self.error_count > 0:
+                        self.error_label.config(
+                            text=f"Errors: {self.error_count} remaining"
+                        )
+                    else:
+                        self.error_label.config(text="")
+
+                    # Update button states
+                    self._update_button_states()
+
+                    self.power_save_percent_var.trace_add(
+                        "write", validate_power_save_percent_spinbox_main
                     )
+
+            self.power_save_percent_var.trace_add("write", on_variable_change)
+
+            power_save_percent_tooltip = "When battery falls below this percentage, the app will automatically switch to Power Saver mode"
+            ToolTip(
+                self.power_save_percent_spinbox,
+                power_save_percent_tooltip,
+                bootstyle="info",
+            )
+            ToolTip(
+                power_save_percent_label, power_save_percent_tooltip, bootstyle="info"
+            )
+            ToolTip(power_save_icon_label, power_save_percent_tooltip, bootstyle="info")
+
+            # Notify when power state changes
+            notify_power_change_label = ttk.Label(
+                power_save_labelframe, text="Notify when Power State Changes:"
+            )
+            notify_power_change_label.grid(
+                row=3, column=0, sticky=W, padx=10, pady=(5, 15)
+            )
+            self.notify_power_change_var.trace_add("write", on_variable_change)
+            notify_power_change_check = ttk.Checkbutton(
+                power_save_labelframe,
+                variable=self.notify_power_change_var,
+                style="primary-round-toggle",
+            )
+            notify_power_change_check.grid(
+                row=3, column=1, sticky=E, padx=10, pady=(5, 15)
+            )
+            ToolTip(
+                notify_power_change_check,
+                "Show notification when power mode is automatically changed",
+                bootstyle="info",
+            )
+            ToolTip(
+                notify_power_change_label,
+                "Show notification when power mode is automatically changed",
+                bootstyle="info",
+            )
+
+            # Function to enable/disable power save fields based on checkbox state
+            def toggle_power_save_fields(*args):
+                if self.enable_power_save_var.get():
+                    self.power_save_percent_spinbox.configure(state="normal")
+                    power_save_percent_label.configure(foreground="")
+                    power_save_icon_label.configure(foreground="")
+                    notify_power_change_check.configure(state="normal")
+                    notify_power_change_label.configure(foreground="")
                 else:
-                    self.error_label.config(text="")
+                    self.power_save_percent_spinbox.configure(state="disabled")
+                    power_save_percent_label.configure(foreground="gray")
+                    power_save_icon_label.configure(foreground="gray")
+                    notify_power_change_check.configure(state="disabled")
+                    notify_power_change_label.configure(foreground="gray")
 
-                # Update button states
-                self._update_button_states()
+            # Add trace to enable/disable checkbox
+            self.enable_power_save_var.trace_add("write", toggle_power_save_fields)
 
-            except tk.TclError:
-                # Handle cases where input is not a valid integer temporarily
-                is_error = True
-                was_error = self.field_errors[self.power_save_percent_spinbox]
-                if is_error and not was_error:
-                    self.error_count += 1
-                    self.field_errors[self.power_save_percent_spinbox] = True
-                    self.power_save_warning.grid()
-                    self.power_save_percent_spinbox.configure(style="Error.TSpinbox")
+            # Initialize the field state
+            toggle_power_save_fields()
 
-                # Update error message display even for invalid input during typing
-                if self.error_count > 0:
-                    self.error_label.config(
-                        text=f"Errors: {self.error_count} remaining"
+            # Default Power Plan
+            default_power_plan_label = ttk.Label(
+                power_save_labelframe, text="Default Power Plan:"
+            )
+            default_power_plan_label.grid(
+                row=4, column=0, sticky=W, padx=10, pady=(5, 15)
+            )
+
+            # Import powerplan module for available plans
+            # from battery_reminder.src import powerplan # This import is already at the top
+
+            # Create combobox for power plans
+            self.default_power_plan_var.trace_add("write", on_variable_change)
+
+            default_power_plan_combobox = ttk.Combobox(
+                power_save_labelframe,
+                textvariable=self.default_power_plan_var,
+                values=powerplan.get_available_power_plans(),
+                state="readonly",
+                width=20,
+            )
+            default_power_plan_combobox.grid(
+                row=4, column=1, sticky=E, padx=10, pady=(5, 15)
+            )
+            # Disable mouse wheel changing value
+            default_power_plan_combobox.bind("<MouseWheel>", lambda e: "break")
+            default_power_plan_combobox.bind("<Button-4>", lambda e: "break")
+            default_power_plan_combobox.bind("<Button-5>", lambda e: "break")
+            self.field_errors[default_power_plan_combobox] = (
+                False  # Track initial error state
+            )
+
+            # Warning label
+            self.power_save_warning = ttk.Label(
+                power_save_labelframe,
+                text="Warning: Value should be between 10% and 50%",
+                foreground="red",
+                font=("Arial", 9),
+            )
+            self.power_save_warning.grid(
+                row=5, column=0, columnspan=2, sticky=W, padx=10, pady=(0, 5)
+            )
+            self.power_save_warning.grid_remove()
+
+            # Validation for power save percentage (combobox)
+            def validate_power_save_percent_combobox_main(*args):
+                try:
+                    value = self.default_power_plan_var.get()
+                    is_error = value not in powerplan.get_available_power_plans()
+                    was_error = self.field_errors[default_power_plan_combobox]
+
+                    if is_error and not was_error:
+                        self.error_count += 1
+                        self.field_errors[default_power_plan_combobox] = True
+                        self.power_save_warning.grid()
+                        default_power_plan_combobox.configure(style="Error.TSpinbox")
+                    elif not is_error and was_error:
+                        self.error_count -= 1
+                        self.field_errors[default_power_plan_combobox] = False
+                        self.power_save_warning.grid_remove()
+                        default_power_plan_combobox.configure(style="default.TSpinbox")
+
+                    # Update error message display
+                    if self.error_count > 0:
+                        self.error_label.config(
+                            text=f"Errors: {self.error_count} remaining"
+                        )
+                    else:
+                        self.error_label.config(text="")
+
+                    # Update button states
+                    self._update_button_states()
+
+                except tk.TclError:
+                    # Handle cases where input is not a valid integer temporarily
+                    is_error = True
+                    was_error = self.field_errors[default_power_plan_combobox]
+                    if is_error and not was_error:
+                        self.error_count += 1
+                        self.field_errors[default_power_plan_combobox] = True
+                        self.power_save_warning.grid()
+                        default_power_plan_combobox.configure(style="Error.TSpinbox")
+
+                    # Update error message display even for invalid input during typing
+                    if self.error_count > 0:
+                        self.error_label.config(
+                            text=f"Errors: {self.error_count} remaining"
+                        )
+                    else:
+                        self.error_label.config(text="")
+
+                    # Update button states
+                    self._update_button_states()
+
+                    self.default_power_plan_var.trace_add(
+                        "write", validate_power_save_percent_combobox_main
                     )
-                else:
-                    self.error_label.config(text="")
 
-                # Update button states
-                self._update_button_states()
+            self.default_power_plan_var.trace_add("write", on_variable_change)
 
-                self.power_save_percent_var.trace_add(
-                    "write", validate_power_save_percent
-                )
+            default_power_plan_tooltip = (
+                "The power plan to restore to when battery level improves"
+            )
+            ToolTip(
+                default_power_plan_combobox,
+                default_power_plan_tooltip,
+                bootstyle="info",
+            )
+            ToolTip(
+                default_power_plan_label, default_power_plan_tooltip, bootstyle="info"
+            )
 
-        self.power_save_percent_var.trace_add("write", on_variable_change)
+            # Button and Error Message Frame (always create, only pack if power plan is valid)
+            # button_error_frame.pack(fill="x", expand=YES, anchor=S) # This line is moved outside the conditional block
+            # self.error_label.pack(side=LEFT, padx=(10, 0)) # This line is moved outside the conditional block
+            # buttons_frame.pack(side=RIGHT, padx=(10, 0)) # This line is moved outside the conditional block
+            # self.reset_default_button.pack(side=LEFT, padx=(0, 10)) # This line is moved outside the conditional block
+            # self.reset_button.pack(side=LEFT, padx=(0, 10)) # This line is moved outside the conditional block
+            # self.save_button.pack(side=LEFT) # This line is moved outside the conditional block
+        else:
+            unknown_label = ttk.Label(
+                form_frame,
+                text=(
+                    "Power Save Mode settings are unavailable because the current power plan could not be detected."
+                    "If you believe this is a bug, please file a report through the App Status page."
+                ),
+                foreground="#888888",  # grey color
+                font=("Arial", 10, "italic"),
+                wraplength=680,
+                justify="left",
+            )
+            unknown_label.pack(fill="x", pady=(20, 15), padx=(10, 0))
 
-        power_save_percent_tooltip = "When battery falls below this percentage, the app will automatically switch to Power Saver mode"
-        ToolTip(
-            self.power_save_percent_spinbox,
-            power_save_percent_tooltip,
-            bootstyle="info",
-        )
-        ToolTip(power_save_percent_label, power_save_percent_tooltip, bootstyle="info")
-        ToolTip(power_save_icon_label, power_save_percent_tooltip, bootstyle="info")
+        # End of Power Save Mode Settings block
 
-        # Notify when power state changes
-        notify_power_change_label = ttk.Label(
-            power_save_labelframe, text="Notify when Power State Changes:"
-        )
-        notify_power_change_label.grid(row=3, column=0, sticky=W, padx=10, pady=(5, 15))
-        self.notify_power_change_var = tk.BooleanVar(
-            value=self.saved_data["PROC_SETTINGS"]["remind_when_power_state_changes"]
-        )
-        self.notify_power_change_var.trace_add("write", on_variable_change)
-        notify_power_change_check = ttk.Checkbutton(
-            power_save_labelframe,
-            variable=self.notify_power_change_var,
-            style="primary-round-toggle",
-        )
-        notify_power_change_check.grid(row=3, column=1, sticky=E, padx=10, pady=(5, 15))
-        ToolTip(
-            notify_power_change_check,
-            "Show notification when power mode is automatically changed",
-            bootstyle="info",
-        )
-        ToolTip(
-            notify_power_change_label,
-            "Show notification when power mode is automatically changed",
-            bootstyle="info",
-        )
-
-        # Function to enable/disable power save fields based on checkbox state
-        def toggle_power_save_fields(*args):
-            if self.enable_power_save_var.get():
-                self.power_save_percent_spinbox.configure(state="normal")
-                power_save_percent_label.configure(foreground="")
-                power_save_icon_label.configure(foreground="")
-                notify_power_change_check.configure(state="normal")
-                notify_power_change_label.configure(foreground="")
-            else:
-                self.power_save_percent_spinbox.configure(state="disabled")
-                power_save_percent_label.configure(foreground="gray")
-                power_save_icon_label.configure(foreground="gray")
-                notify_power_change_check.configure(state="disabled")
-                notify_power_change_label.configure(foreground="gray")
-
-        # Add trace to enable/disable checkbox
-        self.enable_power_save_var.trace_add("write", toggle_power_save_fields)
-
-        # Initialize the field state
-        toggle_power_save_fields()
-
-        # Default Power Plan
-        default_power_plan_label = ttk.Label(
-            power_save_labelframe, text="Default Power Plan:"
-        )
-        default_power_plan_label.grid(row=4, column=0, sticky=W, padx=10, pady=(5, 15))
-
-        # Import powerplan module for available plans
-        from battery_reminder.src import powerplan
-
-        # Create combobox for power plans
-        self.default_power_plan_var = tk.StringVar(
-            value=self.saved_data["PROC_SETTINGS"]["default_power_plan"]
-        )
-        self.default_power_plan_var.trace_add("write", on_variable_change)
-
-        default_power_plan_combobox = ttk.Combobox(
-            power_save_labelframe,
-            textvariable=self.default_power_plan_var,
-            values=powerplan.get_available_power_plans(),
-            state="readonly",
-            width=20,
-        )
-        default_power_plan_combobox.grid(
-            row=4, column=1, sticky=E, padx=10, pady=(5, 15)
-        )
-        # Disable mouse wheel changing value
-        default_power_plan_combobox.bind("<MouseWheel>", lambda e: "break")
-        default_power_plan_combobox.bind("<Button-4>", lambda e: "break")
-        default_power_plan_combobox.bind("<Button-5>", lambda e: "break")
-        self.field_errors[default_power_plan_combobox] = (
-            False  # Track initial error state
-        )
-
-        # Warning label
-        self.power_save_warning = ttk.Label(
-            power_save_labelframe,
-            text="Warning: Value should be between 10% and 50%",
-            foreground="red",
-            font=("Arial", 9),
-        )
-        self.power_save_warning.grid(
-            row=5, column=0, columnspan=2, sticky=W, padx=10, pady=(0, 5)
-        )
-        self.power_save_warning.grid_remove()
-
-        # Validation for power save percentage
-        def validate_power_save_percent(*args):
-            try:
-                value = self.default_power_plan_var.get()
-                is_error = value not in powerplan.get_available_power_plans()
-                was_error = self.field_errors[default_power_plan_combobox]
-
-                if is_error and not was_error:
-                    self.error_count += 1
-                    self.field_errors[default_power_plan_combobox] = True
-                    self.power_save_warning.grid()
-                    default_power_plan_combobox.configure(style="Error.TSpinbox")
-                elif not is_error and was_error:
-                    self.error_count -= 1
-                    self.field_errors[default_power_plan_combobox] = False
-                    self.power_save_warning.grid_remove()
-                    default_power_plan_combobox.configure(style="default.TSpinbox")
-
-                # Update error message display
-                if self.error_count > 0:
-                    self.error_label.config(
-                        text=f"Errors: {self.error_count} remaining"
-                    )
-                else:
-                    self.error_label.config(text="")
-
-                # Update button states
-                self._update_button_states()
-
-            except tk.TclError:
-                # Handle cases where input is not a valid integer temporarily
-                is_error = True
-                was_error = self.field_errors[default_power_plan_combobox]
-                if is_error and not was_error:
-                    self.error_count += 1
-                    self.field_errors[default_power_plan_combobox] = True
-                    self.power_save_warning.grid()
-                    default_power_plan_combobox.configure(style="Error.TSpinbox")
-
-                # Update error message display even for invalid input during typing
-                if self.error_count > 0:
-                    self.error_label.config(
-                        text=f"Errors: {self.error_count} remaining"
-                    )
-                else:
-                    self.error_label.config(text="")
-
-                # Update button states
-                self._update_button_states()
-
-                self.default_power_plan_var.trace_add(
-                    "write", validate_power_save_percent
-                )
-
-        self.default_power_plan_var.trace_add("write", on_variable_change)
-
-        default_power_plan_tooltip = (
-            "The power plan to restore to when battery level improves"
-        )
-        ToolTip(
-            default_power_plan_combobox, default_power_plan_tooltip, bootstyle="info"
-        )
-        ToolTip(default_power_plan_label, default_power_plan_tooltip, bootstyle="info")
-
-        # Button and Error Message Frame
-        button_error_frame = ttk.Frame(form_frame, padding=(0, 20))
+        # At the end of _create_form_widgets, always pack the button and error frame
         button_error_frame.pack(fill="x", expand=YES, anchor=S)
-
-        # Error Message Label
-        self.error_label = ttk.Label(button_error_frame, text="", foreground="red")
         self.error_label.pack(side=LEFT, padx=(10, 0))
-
-        # Buttons Frame (to right-align buttons)
-        buttons_frame = ttk.Frame(button_error_frame)
         buttons_frame.pack(side=RIGHT, padx=(10, 0))
-
-        # Reset Default
-        self.reset_default_button = ttk.Button(
-            buttons_frame,
-            text="Reset Default",
-            command=self.reset_default,
-            style="secondary.TButton",
-            state="disabled",
-        )
         self.reset_default_button.pack(side=LEFT, padx=(0, 10))
-        ToolTip(
-            self.reset_default_button,
-            "Reset all settings to their default values",
-            bootstyle="info",
-        )
-
-        # Reset Button
-        self.reset_button = ttk.Button(
-            buttons_frame,
-            text="Reset",
-            command=self.reset_settings,
-            style="danger.TButton",
-            state="disabled",
-        )
         self.reset_button.pack(side=LEFT, padx=(0, 10))
-        ToolTip(
-            self.reset_button,
-            "Reset all settings to their last saved values",
-            bootstyle="info",
-        )
-
-        # Save Button
-        self.save_button = ttk.Button(
-            buttons_frame,
-            text="Save",
-            command=self.save_settings,
-            style="success.TButton",
-            state="disabled",
-        )
         self.save_button.pack(side=LEFT)
-        ToolTip(self.save_button, "Save current settings", bootstyle="info")
 
     def _update_button_states(self) -> None:
         """Update the state of reset and save buttons based on changes and errors."""
@@ -1636,6 +1679,63 @@ class AppSettingUI:
             # Update button states
             self._update_button_states()
             logger.info("Settings reset to default values")
+
+    def _retry_battery_settings(self):
+        logger.debug("Attempting to retry battery settings detection.")
+        if self.saved_data["PROC_SETTINGS"]["default_power_plan"] != "UNKNOWN":
+            logger.info(
+                "Default power plan already detected: %s",
+                self.saved_data["PROC_SETTINGS"]["default_power_plan"],
+            )
+            return
+
+        new_plan = powerplan.get_current_scheme_name()
+        logger.debug("Current power plan detected: %s", new_plan)
+
+        if new_plan != "UNKNOWN":
+            self.saved_data["PROC_SETTINGS"]["default_power_plan"] = new_plan
+            save_config(self.saved_data)
+            logger.info(
+                "Power plan '%s' detected and saved. Rebuilding app settings tab.",
+                new_plan,
+            )
+
+            # Rebuild the app settings tab to show power save mode settings
+            self._rebuild_app_settings_tab()
+            return
+
+        logger.warning("Power plan still not detected. Will retry in 10 seconds.")
+        # Schedule next update
+        self.master.after(10000, self._retry_battery_settings)
+
+    def _rebuild_app_settings_tab(self):
+        """Rebuild the app settings tab to reflect changes in power plan detection."""
+        logger.info("Rebuilding app settings tab due to power plan detection")
+
+        # Store current tab selection
+        current_tab = self.notebook.index(self.notebook.select())
+
+        # Remove the old app settings tab
+        self.notebook.forget(self.app_settings_tab)
+
+        # Create new app settings tab
+        self.app_settings_tab = ttk.Frame(self.notebook)
+        app_settings_scroll = ScrolledFrame(self.app_settings_tab, autohide=True)
+        app_settings_scroll.pack(fill="both", expand=True)
+        self.create_app_settings_widgets(app_settings_scroll)
+
+        # Add the new tab at the same position
+        self.notebook.insert(0, self.app_settings_tab, text="App Settings".center(20))
+
+        # Restore tab selection
+        self.notebook.select(current_tab)
+
+        # Update button states
+        self._update_button_states()
+
+        self.notify_powerplan_works_again()
+
+        logger.info("App settings tab rebuilt successfully")
 
     def _reload_data(self):
         """Reload the data from the config file."""

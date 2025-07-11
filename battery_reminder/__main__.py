@@ -75,6 +75,7 @@ class App:
 
         self.stop_bg_process_flag = multiprocessing.Value(c_bool, False)
         self.settings_updated_flag = multiprocessing.Value(c_bool, False)
+        self.powerplan_restarted_flag = multiprocessing.Value(c_bool, False)
 
         self.background_process = None
 
@@ -94,6 +95,7 @@ class App:
             self.on_quit_callback,
             self.check_bg_running,
             self.on_settings_update_callback,
+            self.on_powerplan_restarted,
         )
 
         if self.config["PROC_SETTINGS"]["run_on_startup"]:
@@ -110,6 +112,14 @@ class App:
 
         return self.background_process is not None
 
+    def on_powerplan_restarted(self):
+        if self.background_process and self.background_process.is_alive():
+            self.powerplan_restarted_flag.value = True
+        else:
+            BackgroundProcessManager.send_power_state_fixed_message(
+                self.notification_queue
+            )
+
     def start_background_process(self):
         if self.background_process is None or not self.background_process.is_alive():
             logger.info("Starting background process...")
@@ -121,6 +131,7 @@ class App:
                 self.critical_notifications_queue,
                 self.stop_bg_process_flag,
                 self.settings_updated_flag,
+                self.powerplan_restarted_flag,
             )
 
             if self.tray_icon:
@@ -170,7 +181,15 @@ class App:
             logger.info("Recreating settings GUI window")
             self.gui_window = ttk.Window()
             self.gui_window.withdraw()
-            self.settings_app_instance = AppSettingUI(self.gui_window)
+            self.settings_app_instance = AppSettingUI(
+                self.gui_window,
+                self.stop_background_process,
+                self.start_background_process,
+                self.on_quit_callback,
+                self.check_bg_running,
+                self.on_settings_update_callback,
+                self.on_powerplan_restarted,
+            )
 
         self.gui_window.deiconify()
         self.gui_window.lift()

@@ -41,12 +41,20 @@ BATTERY_STATE = {
 
 EVENTS = Literal["overflow", "high", "min"]
 
+
+def change_power_state(state):
+    def changer():
+        powerplan.set_default_power_plan(state)
+
+    return changer
+
+
 POWER_STATES = {
-    "UNKOWN": lambda: print("Unknown power state"),
-    "Power saver": powerplan.change_current_scheme_to_powersaver,
-    "Balanced": powerplan.change_current_scheme_to_balanced,
-    "High performance": powerplan.change_current_scheme_to_high,
-    "Ultimate performance": powerplan.change_current_scheme_to_high,
+    "UNKNOWN": lambda: logger.debug("Unknown power state"),
+    "Power saver": change_power_state("Power saver"),
+    "Balanced": change_power_state("Balanced"),
+    "High performance": change_power_state("High performance"),
+    "Ultimate performance": change_power_state("Ultimate performance"),
 }
 
 
@@ -111,6 +119,10 @@ MESSAGES = {
     "power_state_restored": {
         "title": "⚡ Power Mode Restored",
         "body": "Your laptop has been restored to {default_power_plan} mode as battery level has improved.",
+    },
+    "power_state_fixed": {
+        "title": "⚡ Power Mode Fixed",
+        "body": "Your laptop power settings have been identified and now powerplan changing is enabled!!",
     },
 }
 
@@ -375,6 +387,21 @@ class BackgroundProcessManager:
         )
         logger.debug("Settings update message sent successfully")
 
+    @staticmethod
+    def send_power_state_fixed_message(notifications_queue):
+        logger.info("Sending power state fixed message")
+        msg = MESSAGES["power_state_fixed"]
+        notifications_queue.put_nowait(
+            dict(
+                title=msg["title"],
+                message=msg["body"],
+                icon="happy",
+                timeout=NOTIFICATION_TIMEOUT,
+                urgency=Urgency.Normal,
+            )
+        )
+        logger.debug("Power state fixed message sent successfully")
+
     def reminder_time_passed(
         self,
         event_name: EVENTS,
@@ -546,6 +573,7 @@ def main(
     critical_notifications_queue: multiprocessing.Queue,
     stop_bg_proc_flag: SynchronizedBase,
     settings_updated_flag: SynchronizedBase,
+    powerplan_restarted_flag: SynchronizedBase,
 ):
     try:
         logger.info("Starting background process main loop")
@@ -560,6 +588,9 @@ def main(
 
         while not stop_bg_proc_flag.value:
             try:
+                if powerplan_restarted_flag.value:
+                    new_proc.send_power_state_fixed_message(notifications_queue)
+                    powerplan_restarted_flag.value = False
                 if settings_updated_flag.value:
                     new_proc.update_config(load_config())
                     settings_updated_flag.value = False
@@ -586,6 +617,7 @@ def run_background_process(
     critical_notifications_queue: multiprocessing.Queue,
     stop_bg_proc_flag: SynchronizedBase,
     settings_updated_flag: SynchronizedBase,
+    powerplan_restarted_flag: SynchronizedBase,
 ):
     try:
         logger.info("Starting background Process")
@@ -598,6 +630,7 @@ def run_background_process(
                 critical_notifications_queue,
                 stop_bg_proc_flag,
                 settings_updated_flag,
+                powerplan_restarted_flag,
             ),
         )
         proc.start()

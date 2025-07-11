@@ -70,7 +70,9 @@ class ProcSettings(TypedDict):
 
     save_power_state_at_percent: int | None
     remind_when_power_state_changes: bool
-    default_power_plan: str
+    default_power_plan: Literal[
+        "UNKNOWN", "Power saver", "Balanced", "High performance", "Ultimate performance"
+    ]
 
 
 class GUISettings(TypedDict):
