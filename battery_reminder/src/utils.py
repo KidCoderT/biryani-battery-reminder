@@ -9,8 +9,11 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 # FITNESS FOR A PARTICULAR PURPOSE.  See the LICENSE file for more details.
 
+import os
+import sys
 from threading import Lock, Thread
-# taken from @refactoring.guru
+
+from loguru import logger
 
 
 class SingletonMeta(type):
@@ -46,3 +49,27 @@ class SingletonMeta(type):
                 instance = super().__call__(*args, **kwargs)
                 cls._instances[cls] = instance
         return cls._instances[cls]
+
+
+def is_frozen():
+    """Check if the application is running as a frozen executable (cx_Freeze)."""
+    return getattr(sys, "frozen", False)  # True if frozen, False otherwise[1][6]
+
+
+def is_already_running():
+    """Check if another instance of this executable is running."""
+    import psutil  # Requires 'psutil' package
+
+    current_pid = os.getpid()
+    exe_name = os.path.basename(sys.executable if is_frozen() else sys.argv[0])
+    count = 0
+    for proc in psutil.process_iter(["pid", "name"]):
+        try:
+            if proc.info["name"] == exe_name and proc.info["pid"] != current_pid:
+                logger.debug(
+                    f"Process {proc.info['pid']} - {proc.info['name']} already running"
+                )
+                count += 1
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return count > 0

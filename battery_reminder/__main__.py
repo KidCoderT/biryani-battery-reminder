@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
 import sys
 import asyncio
 import threading
@@ -35,30 +34,10 @@ from battery_reminder.src import (
     remove_from_startup,
     is_in_startup,
 )
+from battery_reminder.src import is_frozen, is_already_running
 from battery_reminder.src import Notifier
 from battery_reminder.src import logger
 from ctypes import c_bool
-
-
-def is_frozen():
-    """Check if the application is running as a frozen executable (cx_Freeze)."""
-    return getattr(sys, "frozen", False)  # True if frozen, False otherwise[1][6]
-
-
-def is_already_running():
-    """Check if another instance of this executable is running."""
-    import psutil  # Requires 'psutil' package
-
-    current_pid = os.getpid()
-    exe_name = os.path.basename(sys.executable if is_frozen() else sys.argv[0])
-    count = 0
-    for proc in psutil.process_iter(["pid", "name"]):
-        try:
-            if proc.info["name"] == exe_name and proc.info["pid"] != current_pid:
-                count += 1
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-    return count > 0
 
 
 class App:
@@ -276,6 +255,8 @@ class App:
 
 async def main():
     try:
+        logger.debug("NEW PROC STARTED!! -> CHECKING IF ANOTHER INSTANCE IS RUNNING")
+
         if is_already_running():
             logger.warning("Another instance is already running")
             messagebox.showwarning(
@@ -317,4 +298,5 @@ async def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     asyncio.run(main())

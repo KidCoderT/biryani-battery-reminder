@@ -2,7 +2,8 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Biryani Battery Reminder"
-#define MyAppVersion "0.9.8"
+#define InstallerName "Battery_Reminder_Installer (V1)"
+#define MyAppVersion "1.0.0"
 #define MyAppPublisher "Tejas, Inc"
 #define MyAppURL "https://www.example.com/"
 #define MyAppExeName "biryani-battery-reminder.exe"
@@ -33,8 +34,8 @@ LicenseFile=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\LICENSE
 ; Remove the following line to run in administrative install mode (install for all users).
 PrivilegesRequired=lowest
 OutputDir=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\build
-OutputBaseFilename=Battery_Reminder_Installer(BETA-2)
-SetupIconFile=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\assets\icon.ico
+OutputBaseFilename={#InstallerName}
+SetupIconFile=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\assets\downloader-icon.ico
 SolidCompression=yes
 WizardStyle=modern
 
@@ -60,4 +61,33 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}\*"
+
+[Code]
+procedure DeleteAppFolderContents;
+var
+  FindRec: TFindRec;
+begin
+  if DirExists(ExpandConstant('{app}')) then begin
+    if FindFirst(ExpandConstant('{app}\*'), FindRec) then begin
+      try
+        repeat
+          if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+            DelTree(ExpandConstant('{app}\') + FindRec.Name, True, True, True);
+        until not FindNext(FindRec);
+      finally
+        FindClose(FindRec);
+      end;
+    end;
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  // Before installing files, clear the app folder
+  if CurStep = ssInstall then
+    DeleteAppFolderContents;
+end;
 

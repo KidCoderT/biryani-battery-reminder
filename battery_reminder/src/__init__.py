@@ -29,3 +29,4 @@ from battery_reminder.src.startup_manager import (
 )
 from battery_reminder.src.logger_config import logger
 from battery_reminder.src import powerplan
+from battery_reminder.src.utils import is_frozen, is_already_running

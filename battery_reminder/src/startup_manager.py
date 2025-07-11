@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from battery_reminder.src.logger_config import logger
 from battery_reminder.src.app_config_manager import SHORTCUT_NAME
+from battery_reminder.src.utils import is_frozen
 
 
 def get_startup_folder():
