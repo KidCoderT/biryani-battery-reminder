@@ -64,8 +64,10 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\*"
+Type: dirifempty; Name: "{app}"
 
 [Code]
+// --- Clean install: Delete all contents of {app} before copying new files ---
 procedure DeleteAppFolderContents;
 var
   FindRec: TFindRec;
@@ -91,3 +93,34 @@ begin
     DeleteAppFolderContents;
 end;
 
+// --- Prevent uninstall if app is running ---
+function IsAppRunning(const ExeName: String): Boolean;
+var
+  WMIService, ProcessList, Process: Variant;
+  Found: Boolean;
+begin
+  Result := False;
+  try
+    WMIService := CreateOleObject('WbemScripting.SWbemLocator').ConnectServer('.', 'root\cimv2');
+    ProcessList := WMIService.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''' + ExeName + '''');
+    for Process in ProcessList do
+    begin
+      Result := True;
+      Exit;
+    end;
+  except
+    // If WMI is not available, ignore and allow uninstall
+    Result := False;
+  end;
+end;
+
+function InitializeUninstall(): Boolean;
+begin
+  if IsAppRunning('{#MyAppExeName}') then
+  begin
+    MsgBox('{#MyAppName} is currently running. Please close it before uninstalling.', mbError, MB_OK);
+    Result := False; // Cancel uninstall
+  end
+  else
+    Result := True; // Continue uninstall
+end;
