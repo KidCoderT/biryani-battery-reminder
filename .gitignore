@@ -192,3 +192,7 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+battery_reminder/biryani_config.json
+battery_reminder/biryani_on_open_config.txt
+logs

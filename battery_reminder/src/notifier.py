@@ -13,8 +13,9 @@
 import queue
 import asyncio
 from battery_reminder.src.app_config_manager import get_app_name
-from desktop_notifier import DesktopNotifier, Icon, Urgency, Button
+from desktop_notifier import DesktopNotifier, Icon, Urgency, Button, Sound
 import multiprocessing
+import playsound3
 
 from battery_reminder.src.assets_manager import get_emoji
 from battery_reminder.src.logger_config import logger
@@ -52,6 +53,11 @@ class Notifier:
                 )
                 for button in params.pop("buttons")
             ]
+
+        if "sound" in params:
+            sound = params.pop("sound")
+            playsound3.playsound(sound)
+
         notification = await self.notifier.send(**params)
         self.notifications.append(notification)
         return notification

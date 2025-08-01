@@ -53,6 +53,7 @@ APP_ICONS = {  # BASED ON THE APP PROCESS STATE IF ITS WORKING OR NOT
 }
 
 EMOJIS_FOLDER = ASSETS_FOLDER / "emojis"
+SOUND_FOLDER = ASSETS_FOLDER / "sounds"
 
 EMOJI_TYPES = typing.Literal[
     "happy", "oh-no", "perfect", "plain", "too-much", "yes", "hehe", "too-much-2"
@@ -60,6 +61,12 @@ EMOJI_TYPES = typing.Literal[
 EMOJI: dict[EMOJI_TYPES, Path] = {
     emoji: EMOJIS_FOLDER / f"{emoji}.png" for emoji in typing.get_args(EMOJI_TYPES)
 }
+
+SOUND_TYPES = typing.Literal["too-low", "perfect-battery", "battery-overflow"]
+
+
+def get_default_sound(sound_type: SOUND_TYPES):
+    return str(SOUND_FOLDER / f"{sound_type}.mp3")
 
 
 def get_tkinter_icon():
@@ -81,4 +88,4 @@ def get_emoji(type: EMOJI_TYPES | list[EMOJI_TYPES]):
     return icon
 
 
-__all__ = ["APP_ICONS", "get_emoji"]
+__all__ = ["APP_ICONS", "get_emoji", "SOUND_TYPES", "get_default_sound"]

@@ -15,6 +15,7 @@ dependencies = [
     "loguru (>=0.7.3,<0.8.0)",
     "cx-freeze (>=8.3.0,<9.0.0)",
     "psutil (>=7.0.0,<8.0.0)",
+    "playsound3 (>=3.2.4,<4.0.0)",
 ]
 
 [project.optional-dependencies]
@@ -59,6 +60,7 @@ includes = [
     "ttkbootstrap.utility",
     "pystray",
     "psutil",
+    "playsound3"
 ]
 zip_include_packages = ["desktop_notifier"]
 zip_includes = [

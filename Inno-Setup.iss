@@ -9,8 +9,6 @@
 #define MyAppExeName "biryani-battery-reminder.exe"
 
 [Setup]
-; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
-; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppId={{A0B8AD10-A4A3-41C5-8670-225C0FA603C3}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -21,17 +19,10 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
-; "ArchitecturesAllowed=x64compatible" specifies that Setup cannot run
-; on anything but x64 and Windows 11 on Arm.
 ArchitecturesAllowed=x64compatible
-; "ArchitecturesInstallIn64BitMode=x64compatible" requests that the
-; install be done in "64-bit mode" on x64 or Windows 11 on Arm,
-; meaning it should use the native 64-bit Program Files directory and
-; the 64-bit view of the registry.
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 LicenseFile=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\LICENSE
-; Remove the following line to run in administrative install mode (install for all users).
 PrivilegesRequired=lowest
 OutputDir=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\build
 OutputBaseFilename={#InstallerName}
@@ -96,20 +87,24 @@ end;
 // --- Prevent uninstall if app is running ---
 function IsAppRunning(const ExeName: String): Boolean;
 var
-  WMIService, ProcessList, Process: Variant;
-  Found: Boolean;
+  SWbemLocator, WbemServices, WbemObjectSet, WbemObject: Variant;
+  Query: String;
+  Enum: Variant;
 begin
   Result := False;
   try
-    WMIService := CreateOleObject('WbemScripting.SWbemLocator').ConnectServer('.', 'root\cimv2');
-    ProcessList := WMIService.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''' + ExeName + '''');
-    for Process in ProcessList do
+    SWbemLocator := CreateOleObject('WbemScripting.SWbemLocator');
+    WbemServices := SWbemLocator.ConnectServer('.', 'root\CIMV2');
+    Query := 'SELECT * FROM Win32_Process WHERE Name = "' + ExeName + '"';
+    WbemObjectSet := WbemServices.ExecQuery(Query);
+    Enum := WbemObjectSet._NewEnum;
+    while not VarIsNull(Enum) and Enum.Next(1, WbemObject, 0) do
     begin
       Result := True;
-      Exit;
+      break;
     end;
   except
-    // If WMI is not available, ignore and allow uninstall
+    // If WMI is not available, allow uninstall
     Result := False;
   end;
 end;

@@ -236,6 +236,7 @@ class BackgroundProcessManager:
                 icon="plain",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Critical,
+                sound=self.config["PROC_SETTINGS"]["play_low_battery_sound"],
             )
         )
         logger.debug("Welcome message sent successfully")
@@ -279,6 +280,7 @@ class BackgroundProcessManager:
                     urgency=Urgency.Normal,
                 )
             )
+
         logger.debug("Charging message sent successfully")
 
     def send_discharging_message(self):
@@ -465,11 +467,11 @@ class BackgroundProcessManager:
                     f"Charger state changed from {self.current_charger_state} to {new_state}"
                 )
                 if new_state == "Charging":
-                    if self.config["PROC_SETTINGS"]["alert_when_charger_plugged"]:
-                        self.send_charging_message()
-                else:
-                    if self.config["PROC_SETTINGS"]["alert_when_charger_removed"]:
-                        self.send_discharging_message()
+                    # if self.config["PROC_SETTINGS"]["alert_when_charger_plugged"]:
+                    self.send_charging_message()
+                elif new_state == "Discharging":
+                    # if self.config["PROC_SETTINGS"]["alert_when_charger_removed"]:
+                    self.send_discharging_message()
 
                 self.current_charger_state = new_state
                 logger.debug("state changed")
@@ -478,13 +480,14 @@ class BackgroundProcessManager:
                 charge_amount = self.battery.percent.value
                 pause_time = self.config["PROC_SETTINGS"]["remind_high_charge_time"]
 
-                if charge_amount >= self.config["PROC_SETTINGS"][
-                    "overflow_percent"
-                ] and self.reminder_time_passed(
-                    "overflow",
-                    self.config["PROC_SETTINGS"]["remind_overflow_charge_time"],
+                if (
+                    charge_amount >= self.config["PROC_SETTINGS"]["overflow_percent"]
                 ):  # 2 min
-                    self.send_overflow_warning()
+                    if self.reminder_time_passed(
+                        "overflow",
+                        self.config["PROC_SETTINGS"]["remind_overflow_charge_time"],
+                    ):
+                        self.send_overflow_warning()
                 elif charge_amount >= self.config["PROC_SETTINGS"][
                     "high_charge_percent"
                 ] and self.reminder_time_passed("high", pause_time):

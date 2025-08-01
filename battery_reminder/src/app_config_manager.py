@@ -18,6 +18,7 @@ from typing import Literal, TypedDict
 
 from battery_reminder.src.logger_config import logger
 from battery_reminder.src.powerplan import get_current_scheme_name
+from battery_reminder.src.assets_manager import get_default_sound
 
 APP_NAME = "biryani-battery-reminder"
 CONFIG_FILE_NAME = (
@@ -41,6 +42,14 @@ Expected structure for the config.json file:
         "save_power_state_at_percent": None,
         "remind_when_power_state_changes": true,
         "default_power_plan": <computer_default>,
+
+        "play_low_battery_sound": true,
+        "play_high_battery_sound": true,
+        "play_overflow_battery_sound": true,
+
+        "low_battery_sound_path": "./assets/sounds/too-low.mp3",
+        "high_battery_sound_path": "./assets/sounds/perfect-battery.mp3",
+        "overflow_battery_sound_path": "./assets/sounds/battery-overflow.mp3",
     },
     "GUI_SETTINGS": {
         "theme": "system",
@@ -74,6 +83,14 @@ class ProcSettings(TypedDict):
         "UNKNOWN", "Power saver", "Balanced", "High performance", "Ultimate performance"
     ]
 
+    play_low_battery_sound: bool
+    play_high_battery_sound: bool
+    play_overflow_battery_sound: bool
+
+    low_battery_sound_path: str
+    high_battery_sound_path: str
+    overflow_battery_sound_path: str
+
 
 class GUISettings(TypedDict):
     """Type definition for the GUI_SETTINGS section."""
@@ -102,6 +119,12 @@ DEFAULT_CONFIG_DATA: AppConfig = {
         "save_power_state_at_percent": 20,
         "remind_when_power_state_changes": True,
         "default_power_plan": get_current_scheme_name(),
+        "play_low_battery_sound": True,
+        "play_high_battery_sound": True,
+        "play_overflow_battery_sound": True,
+        "low_battery_sound_path": get_default_sound("too-low"),
+        "high_battery_sound_path": get_default_sound("perfect-battery"),
+        "overflow_battery_sound_path": get_default_sound("battery-overflow"),
     },
     "GUI_SETTINGS": {"theme": "light"},
 }
