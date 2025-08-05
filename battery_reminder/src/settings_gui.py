@@ -9,11 +9,18 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 # FITNESS FOR A PARTICULAR PURPOSE.  See the LICENSE file for more details.
 
-import urllib
+# WARNING: THIS ENTIRE CODE IS AI GENERATED SLOB
+# I WAS TOO LAZY TO WRITE ALL OF THIS. I WROTE SOM PARTS BUT MOSTLY AI.
+# IT WORKS BUT ITS ALSO CRAP.... SO UNLESS U REWRITING
+# FROM SCRATCH DONT CHANGE IN MY RECOMMENDATION...
+
 import tkinter as tk
+from tkinter import filedialog
 from typing import Any, Dict, Literal
 from PIL import Image, ImageTk
 import webbrowser
+import os
+from pathlib import Path
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -32,7 +39,7 @@ from battery_reminder.src.app_config_manager import (
 )
 from battery_reminder.src.logger_config import logger
 from battery_reminder.src.startup_manager import add_to_startup, remove_from_startup
-from battery_reminder.src.assets_manager import get_tkinter_icon
+from battery_reminder.src.assets_manager import get_tkinter_icon, get_default_sound
 from battery_reminder.src import powerplan
 
 
@@ -1204,6 +1211,172 @@ class AppSettingUI:
 
         # End of Power Save Mode Settings block
 
+        # Sound Settings Section
+        sound_settings_labelframe = ttk.LabelFrame(
+            form_frame,
+            text="Sound Settings",
+            style="secondary",
+            padding=(10, 10),
+        )
+        sound_settings_labelframe.grid_columnconfigure(
+            1, weight=1
+        )  # Input column expands
+        sound_settings_labelframe.grid_columnconfigure(0, weight=0)  # Label column
+        sound_settings_labelframe.pack(
+            fill="x",
+            pady=(0, 20),
+        )
+
+        # Sound settings configuration
+        sound_settings_config = [
+            {
+                "key": "low_battery_sound",
+                "label": "Low Battery Sound",
+                "default": get_default_sound("too-low"),
+                "tooltip": "Sound played when battery level is low",
+            },
+            {
+                "key": "high_battery_sound",
+                "label": "High Battery Sound",
+                "default": get_default_sound("perfect-battery"),
+                "tooltip": "Sound played when battery level is high",
+            },
+            {
+                "key": "overflow_battery_sound",
+                "label": "Overflow Battery Sound",
+                "default": get_default_sound("battery-overflow"),
+                "tooltip": "Sound played when battery is at overflow level",
+            },
+            {
+                "key": "welcome_sound",
+                "label": "Welcome Sound",
+                "default": None,
+                "tooltip": "Sound played when the app starts monitoring",
+            },
+            {
+                "key": "started_charging_sound",
+                "label": "Started Charging Sound",
+                "default": None,
+                "tooltip": "Sound played when charger is connected",
+            },
+            {
+                "key": "charger_disconnected_sound",
+                "label": "Charger Disconnected Sound",
+                "default": None,
+                "tooltip": "Sound played when charger is disconnected",
+            },
+            {
+                "key": "settings_updated_sound",
+                "label": "Settings Updated Sound",
+                "default": None,
+                "tooltip": "Sound played when settings are saved",
+            },
+            {
+                "key": "power_state_changed_sound",
+                "label": "Power State Changed Sound",
+                "default": None,
+                "tooltip": "Sound played when power mode is automatically changed",
+            },
+            {
+                "key": "power_state_restored_sound",
+                "label": "Power State Restored Sound",
+                "default": None,
+                "tooltip": "Sound played when power mode is restored",
+            },
+        ]
+
+        # Initialize sound variables
+        self.sound_vars = {}
+        self.sound_labels = {}
+        self.sound_edit_buttons = {}
+        self.sound_clear_buttons = {}
+        # --- Local state for sound settings (unsaved changes) ---
+        # Initialize from saved_data
+        self.current_sound_data = {}
+        for config in sound_settings_config:
+            key = config["key"]
+            self.current_sound_data[key] = self.saved_data["PROC_SETTINGS"].get(
+                key, config["default"]
+            )
+
+        def create_sound_setting_row(parent, config, row):
+            key = config["key"]
+            label_text = config["label"]
+            default_value = config["default"]
+            tooltip_text = config["tooltip"]
+
+            # Get current value from local state
+            current_value = self.current_sound_data.get(key, default_value)
+
+            # Label
+            label = ttk.Label(parent, text=f"{label_text}:")
+            label.grid(row=row, column=0, sticky=W, padx=10, pady=(5, 15))
+
+            # Value display frame
+            value_frame = ttk.Frame(parent)
+            value_frame.grid(row=row, column=1, sticky=EW, padx=(0, 10), pady=(5, 15))
+            value_frame.grid_columnconfigure(0, weight=1)
+
+            def get_display_value(value):
+                if value is None:
+                    return "None"
+                elif isinstance(value, str) and os.path.exists(value):
+                    filename = os.path.basename(value)
+                    # foldername = value.split("\\")[-2]
+                    # small_name = len(foldername + "\\" + filename) < 20
+                    return "...\\" + (
+                        # (foldername[:5] + "...\\" + filename)
+                        # if not small_name
+                        # else (foldername + "\\" + filename)
+                        filename
+                    )
+                else:
+                    print(value)
+                    return str(value)
+
+            value_var = tk.StringVar(value=get_display_value(current_value))
+            value_label = ttk.Label(value_frame, textvariable=value_var, anchor=W)
+            value_label.pack(side=LEFT, fill=X, expand=True)
+
+            # Buttons frame
+            buttons_frame = ttk.Frame(value_frame)
+            buttons_frame.pack(side=RIGHT, padx=(10, 0))
+
+            # Edit button
+            edit_button = ttk.Button(
+                buttons_frame,
+                text="🔍",
+                style="info.TButton",
+                width=3,
+                command=lambda: self._edit_sound_file(key, value_var),
+            )
+            edit_button.pack(side=LEFT, padx=(0, 5))
+
+            # Clear button
+            clear_button = ttk.Button(
+                buttons_frame,
+                text="❌",
+                style="warning.TButton",
+                width=3,
+                command=lambda: self._clear_sound_file(key, value_var),
+            )
+            clear_button.pack(side=LEFT)
+
+            self.sound_vars[key] = value_var
+            self.sound_labels[key] = value_label
+            self.sound_edit_buttons[key] = edit_button
+            self.sound_clear_buttons[key] = clear_button
+
+            ToolTip(label, tooltip_text, bootstyle="info")
+            ToolTip(value_label, tooltip_text, bootstyle="info")
+            ToolTip(edit_button, f"Change the {label_text.lower()}", bootstyle="info")
+            ToolTip(
+                clear_button, f"Remove the {label_text.lower()}", bootstyle="warning"
+            )
+
+        for i, config in enumerate(sound_settings_config):
+            create_sound_setting_row(sound_settings_labelframe, config, i)
+
         # At the end of _create_form_widgets, always pack the button and error frame
         button_error_frame.pack(fill="x", expand=YES, anchor=S)
         self.error_label.pack(side=LEFT, padx=(10, 0))
@@ -1211,6 +1384,38 @@ class AppSettingUI:
         self.reset_default_button.pack(side=LEFT, padx=(0, 10))
         self.reset_button.pack(side=LEFT, padx=(0, 10))
         self.save_button.pack(side=LEFT)
+
+    def _edit_sound_file(self, key: str, value_var: tk.StringVar) -> None:
+        """Open file dialog to select a sound file (local state only)."""
+        logger.info(f"Opening file dialog for sound setting: {key}")
+        current_path = self.current_sound_data.get(key)
+        initial_dir = (
+            os.path.dirname(current_path)
+            if current_path and os.path.exists(current_path)
+            else os.path.expanduser("~")
+        )
+        file_path = filedialog.askopenfilename(
+            title=f"Select sound file for {key.replace('_', ' ').title()}",
+            initialdir=initial_dir,
+            filetypes=[
+                ("WAV files", "*.wav"),
+            ],
+        )
+        if file_path:
+            self.current_sound_data[key] = str(Path(file_path))
+            filename = os.path.basename(file_path)
+            display_value = filename[-10:] if len(filename) > 10 else filename
+            value_var.set(display_value)
+            self._update_button_states()
+            logger.info(f"Sound file updated for {key}: {file_path}")
+
+    def _clear_sound_file(self, key: str, value_var: tk.StringVar) -> None:
+        """Clear the sound file setting (local state only)."""
+        logger.info(f"Clearing sound file for setting: {key}")
+        self.current_sound_data[key] = None
+        value_var.set("None")
+        self._update_button_states()
+        logger.info(f"Sound file cleared for {key}")
 
     def _update_button_states(self) -> None:
         """Update the state of reset and save buttons based on changes and errors."""
@@ -1250,24 +1455,37 @@ class AppSettingUI:
         if self.enable_power_save_var.get():
             save_power_state_at_percent = self.power_save_percent_var.get()
 
-        return {
-            "PROC_SETTINGS": {
-                "run_on_startup": self.run_on_startup_var.get(),
-                "alert_when_charger_plugged": self.charger_plugged_var.get(),
-                "alert_when_charger_removed": self.charger_removed_var.get(),
-                "low_charge_percent": self.low_battery_var.get(),
-                "high_charge_percent": self.high_battery_var.get(),
-                "overflow_percent": self.overflow_var.get(),
-                "remind_low_charge_time": low_min.get() * 60 + low_sec.get(),
-                "remind_high_charge_time": high_min.get() * 60 + high_sec.get(),
-                "remind_overflow_charge_time": overflow_min.get() * 60
-                + overflow_sec.get(),
-                "save_power_state_at_percent": save_power_state_at_percent,
-                "remind_when_power_state_changes": self.notify_power_change_var.get(),
-                "default_power_plan": self.default_power_plan_var.get(),
-            },
+        # Get sound settings from local state
+        sound_settings = {}
+        for key in self.sound_vars:
+            value = self.current_sound_data.get(key)
+            sound_settings[key] = value
+
+        # Create the settings dictionary with proper typing
+        proc_settings = {
+            "run_on_startup": self.run_on_startup_var.get(),
+            "alert_when_charger_plugged": self.charger_plugged_var.get(),
+            "alert_when_charger_removed": self.charger_removed_var.get(),
+            "low_charge_percent": self.low_battery_var.get(),
+            "high_charge_percent": self.high_battery_var.get(),
+            "overflow_percent": self.overflow_var.get(),
+            "remind_low_charge_time": low_min.get() * 60 + low_sec.get(),
+            "remind_high_charge_time": high_min.get() * 60 + high_sec.get(),
+            "remind_overflow_charge_time": overflow_min.get() * 60 + overflow_sec.get(),
+            "save_power_state_at_percent": save_power_state_at_percent,
+            "remind_when_power_state_changes": self.notify_power_change_var.get(),
+            "default_power_plan": self.default_power_plan_var.get(),
+        }
+
+        # Add sound settings
+        proc_settings.update(sound_settings)
+
+        # Cast to AppConfig type to satisfy the type checker
+        result: AppConfig = {
+            "PROC_SETTINGS": proc_settings,  # type: ignore
             "GUI_SETTINGS": {"theme": self.theme},
         }
+        return result
 
     def has_settings_changed(
         self, new_data: AppConfig, old_data: AppConfig | None = None, ignore_theme=False
@@ -1364,7 +1582,16 @@ class AppSettingUI:
                 self.saved_data["PROC_SETTINGS"]["default_power_plan"]
             )
 
-            # Update button states
+            # Reset sound settings from saved_data
+            for key in self.sound_vars:
+                value = self.saved_data["PROC_SETTINGS"].get(key)
+                self.current_sound_data[key] = value
+                if value is None:
+                    self.sound_vars[key].set("None")
+                else:
+                    filename = os.path.basename(value)
+                    display_value = filename[-10:] if len(filename) > 10 else filename
+                    self.sound_vars[key].set(display_value)
             self._update_button_states()
             logger.info("Settings reset to last saved values")
 
@@ -1411,6 +1638,10 @@ class AppSettingUI:
                     message=f"An error occurred while updating startup settings: {str(e)}",
                     parent=self.master,
                 )
+
+        # Update local sound state from saved (in case of normalization)
+        for key in self.sound_vars:
+            self.current_sound_data[key] = self.saved_data["PROC_SETTINGS"].get(key)
 
         # Update button states
         self._update_button_states()
@@ -1676,7 +1907,16 @@ class AppSettingUI:
                 get_default_config()["PROC_SETTINGS"]["default_power_plan"]
             )
 
-            # Update button states
+            # Reset sound settings to defaults
+            for key in self.sound_vars:
+                default_value = get_default_config()["PROC_SETTINGS"].get(key)
+                self.current_sound_data[key] = default_value
+                if default_value is None:
+                    self.sound_vars[key].set("None")
+                else:
+                    filename = os.path.basename(default_value)
+                    display_value = filename[-10:] if len(filename) > 10 else filename
+                    self.sound_vars[key].set(display_value)
             self._update_button_states()
             logger.info("Settings reset to default values")
 

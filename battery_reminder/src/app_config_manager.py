@@ -18,6 +18,7 @@ from typing import Literal, TypedDict
 
 from battery_reminder.src.logger_config import logger
 from battery_reminder.src.powerplan import get_current_scheme_name
+from battery_reminder.src.assets_manager import get_default_sound
 
 APP_NAME = "biryani-battery-reminder"
 CONFIG_FILE_NAME = (
@@ -41,6 +42,10 @@ Expected structure for the config.json file:
         "save_power_state_at_percent": None,
         "remind_when_power_state_changes": true,
         "default_power_plan": <computer_default>,
+
+        "low_battery_sound": "./assets/sounds/too-low.mp3",
+        "high_battery_sound": "./assets/sounds/perfect-battery.mp3",
+        "overflow_battery_sound": "./assets/sounds/battery-overflow.mp3",
     },
     "GUI_SETTINGS": {
         "theme": "system",
@@ -74,6 +79,17 @@ class ProcSettings(TypedDict):
         "UNKNOWN", "Power saver", "Balanced", "High performance", "Ultimate performance"
     ]
 
+    # Sound configurations for all message types
+    low_battery_sound: str | None
+    high_battery_sound: str | None
+    overflow_battery_sound: str | None
+    welcome_sound: str | None  # Single sound for both welcome charging and discharging
+    started_charging_sound: str | None
+    charger_disconnected_sound: str | None
+    settings_updated_sound: str | None
+    power_state_changed_sound: str | None
+    power_state_restored_sound: str | None
+
 
 class GUISettings(TypedDict):
     """Type definition for the GUI_SETTINGS section."""
@@ -102,6 +118,16 @@ DEFAULT_CONFIG_DATA: AppConfig = {
         "save_power_state_at_percent": 20,
         "remind_when_power_state_changes": True,
         "default_power_plan": get_current_scheme_name(),
+        # Sound configurations for all message types
+        "low_battery_sound": get_default_sound("too-low"),
+        "high_battery_sound": get_default_sound("perfect-battery"),
+        "overflow_battery_sound": get_default_sound("battery-overflow"),
+        "welcome_sound": None,  # Single sound for both welcome charging and discharging
+        "started_charging_sound": None,
+        "charger_disconnected_sound": None,
+        "settings_updated_sound": None,
+        "power_state_changed_sound": None,
+        "power_state_restored_sound": None,
     },
     "GUI_SETTINGS": {"theme": "light"},
 }

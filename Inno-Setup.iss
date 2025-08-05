@@ -96,20 +96,24 @@ end;
 // --- Prevent uninstall if app is running ---
 function IsAppRunning(const ExeName: String): Boolean;
 var
-  WMIService, ProcessList, Process: Variant;
-  Found: Boolean;
+  SWbemLocator, WbemServices, WbemObjectSet, WbemObject: Variant;
+  Query: String;
+  Enum: Variant;
 begin
   Result := False;
   try
-    WMIService := CreateOleObject('WbemScripting.SWbemLocator').ConnectServer('.', 'root\cimv2');
-    ProcessList := WMIService.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''' + ExeName + '''');
-    for Process in ProcessList do
+    SWbemLocator := CreateOleObject('WbemScripting.SWbemLocator');
+    WbemServices := SWbemLocator.ConnectServer('.', 'root\CIMV2');
+    Query := 'SELECT * FROM Win32_Process WHERE Name = "' + ExeName + '"';
+    WbemObjectSet := WbemServices.ExecQuery(Query);
+    Enum := WbemObjectSet._NewEnum;
+    while not VarIsNull(Enum) and Enum.Next(1, WbemObject, 0) do
     begin
       Result := True;
-      Exit;
+      break;
     end;
   except
-    // If WMI is not available, ignore and allow uninstall
+    // If WMI is not available, allow uninstall
     Result := False;
   end;
 end;
