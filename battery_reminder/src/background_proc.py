@@ -20,14 +20,12 @@ from battery_reminder.src.app_config_manager import (
     load_config,
     AppConfig,
 )
-from battery_reminder.src.assets_manager import get_emoji
 from battery_reminder.src.logger_config import logger
 from battery_reminder.src.utils import SingletonMeta
 from battery_reminder.src import powerplan
 
 import multiprocessing
-from multiprocessing.sharedctypes import SynchronizedBase, Value
-from ctypes import c_bool
+from multiprocessing.sharedctypes import SynchronizedBase
 
 # Initialize logger
 NOTIFICATION_TIMEOUT = -1
@@ -229,6 +227,7 @@ class BackgroundProcessManager:
             body = msg["body"].format(
                 percentage=self.percentage, time_to_empty=self.time_to_empty
             )
+
         self.notification_queue.put_nowait(
             dict(
                 title=title,
@@ -236,7 +235,7 @@ class BackgroundProcessManager:
                 icon="plain",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Critical,
-                sound=self.config["PROC_SETTINGS"]["play_low_battery_sound"],
+                sound=self.config["PROC_SETTINGS"]["welcome_sound"],
             )
         )
         logger.debug("Welcome message sent successfully")
@@ -252,6 +251,7 @@ class BackgroundProcessManager:
                     icon="too-much-2",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Critical,
+                    sound=self.config["PROC_SETTINGS"]["overflow_battery_sound"],
                 )
             )
             self.reminder_time_passed("high", 0, True)
@@ -264,6 +264,7 @@ class BackgroundProcessManager:
                     icon="hehe",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Normal,
+                    sound=self.config["PROC_SETTINGS"]["high_battery_sound"],
                 )
             )
             self.reminder_time_passed("high", 0, True)
@@ -278,9 +279,9 @@ class BackgroundProcessManager:
                     icon="happy",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Normal,
+                    sound=self.config["PROC_SETTINGS"]["started_charging_sound"],
                 )
             )
-
         logger.debug("Charging message sent successfully")
 
     def send_discharging_message(self):
@@ -297,6 +298,7 @@ class BackgroundProcessManager:
                     icon="oh-no",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Critical,
+                    sound=self.config["PROC_SETTINGS"]["low_battery_sound"],
                 )
             )
             self.reminder_time_passed("min", 0, True)
@@ -312,6 +314,7 @@ class BackgroundProcessManager:
                     icon="happy",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Normal,
+                    sound=self.config["PROC_SETTINGS"]["charger_disconnected_sound"],
                 )
             )
         logger.debug("Discharging message sent successfully")
@@ -328,6 +331,7 @@ class BackgroundProcessManager:
                 icon="perfect",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Normal,
+                sound=self.config["PROC_SETTINGS"]["high_battery_sound"],
             )
         )
         logger.debug("Removal warning sent successfully")
@@ -343,6 +347,7 @@ class BackgroundProcessManager:
                     icon="too-much",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Critical,
+                    sound=self.config["PROC_SETTINGS"]["overflow_battery_sound"],
                 )
             )
         else:
@@ -354,6 +359,7 @@ class BackgroundProcessManager:
                     icon="too-much",
                     timeout=NOTIFICATION_TIMEOUT,
                     urgency=Urgency.Critical,
+                    sound=self.config["PROC_SETTINGS"]["overflow_battery_sound"],
                 )
             )
         logger.debug("Overflow warning sent successfully")
@@ -370,38 +376,45 @@ class BackgroundProcessManager:
                 icon="oh-no",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Critical,
+                sound=self.config["PROC_SETTINGS"]["low_battery_sound"],
             )
         )
         logger.debug("Charge reminder sent successfully")
 
     @staticmethod
-    def send_updated_settings_message(critical_notifications_queue):
+    def send_updated_settings_message(critical_notifications_queue, config=None):
         logger.info("Sending settings update message")
         msg = MESSAGES["settings_updated"]
-        critical_notifications_queue.put_nowait(
-            dict(
-                title=msg["title"],
-                message=msg["body"],
-                icon="yes",
-                timeout=NOTIFICATION_TIMEOUT,
-                urgency=Urgency.Normal,
-            )
+        notification_data = dict(
+            title=msg["title"],
+            message=msg["body"],
+            icon="yes",
+            timeout=NOTIFICATION_TIMEOUT,
+            urgency=Urgency.Normal,
         )
+        if config:
+            notification_data["sound"] = config["PROC_SETTINGS"][
+                "settings_updated_sound"
+            ]
+        critical_notifications_queue.put_nowait(notification_data)
         logger.debug("Settings update message sent successfully")
 
     @staticmethod
-    def send_power_state_fixed_message(notifications_queue):
+    def send_power_state_fixed_message(notifications_queue, config=None):
         logger.info("Sending power state fixed message")
         msg = MESSAGES["power_state_fixed"]
-        notifications_queue.put_nowait(
-            dict(
-                title=msg["title"],
-                message=msg["body"],
-                icon="happy",
-                timeout=NOTIFICATION_TIMEOUT,
-                urgency=Urgency.Normal,
-            )
+        notification_data = dict(
+            title=msg["title"],
+            message=msg["body"],
+            icon="happy",
+            timeout=NOTIFICATION_TIMEOUT,
+            urgency=Urgency.Normal,
         )
+        if config:
+            notification_data["sound"] = config["PROC_SETTINGS"][
+                "power_state_fixed_sound"
+            ]
+        notifications_queue.put_nowait(notification_data)
         logger.debug("Power state fixed message sent successfully")
 
     def reminder_time_passed(
@@ -436,6 +449,7 @@ class BackgroundProcessManager:
                 icon="plain",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Normal,
+                sound=self.config["PROC_SETTINGS"]["power_state_changed_sound"],
             )
         )
 
@@ -450,6 +464,7 @@ class BackgroundProcessManager:
                 icon="yes",
                 timeout=NOTIFICATION_TIMEOUT,
                 urgency=Urgency.Normal,
+                sound=self.config["PROC_SETTINGS"]["power_state_restored_sound"],
             )
         )
 
@@ -467,11 +482,11 @@ class BackgroundProcessManager:
                     f"Charger state changed from {self.current_charger_state} to {new_state}"
                 )
                 if new_state == "Charging":
-                    # if self.config["PROC_SETTINGS"]["alert_when_charger_plugged"]:
-                    self.send_charging_message()
-                elif new_state == "Discharging":
-                    # if self.config["PROC_SETTINGS"]["alert_when_charger_removed"]:
-                    self.send_discharging_message()
+                    if self.config["PROC_SETTINGS"]["alert_when_charger_plugged"]:
+                        self.send_charging_message()
+                else:
+                    if self.config["PROC_SETTINGS"]["alert_when_charger_removed"]:
+                        self.send_discharging_message()
 
                 self.current_charger_state = new_state
                 logger.debug("state changed")
@@ -480,14 +495,13 @@ class BackgroundProcessManager:
                 charge_amount = self.battery.percent.value
                 pause_time = self.config["PROC_SETTINGS"]["remind_high_charge_time"]
 
-                if (
-                    charge_amount >= self.config["PROC_SETTINGS"]["overflow_percent"]
+                if charge_amount >= self.config["PROC_SETTINGS"][
+                    "overflow_percent"
+                ] and self.reminder_time_passed(
+                    "overflow",
+                    self.config["PROC_SETTINGS"]["remind_overflow_charge_time"],
                 ):  # 2 min
-                    if self.reminder_time_passed(
-                        "overflow",
-                        self.config["PROC_SETTINGS"]["remind_overflow_charge_time"],
-                    ):
-                        self.send_overflow_warning()
+                    self.send_overflow_warning()
                 elif charge_amount >= self.config["PROC_SETTINGS"][
                     "high_charge_percent"
                 ] and self.reminder_time_passed("high", pause_time):
@@ -553,7 +567,9 @@ class BackgroundProcessManager:
             except Exception as e:
                 logger.error(f"Failed to reset power state: {e}")
 
-        self.send_updated_settings_message(self.critical_notifications_queue)
+        self.send_updated_settings_message(
+            self.critical_notifications_queue, self.config
+        )
         logger.debug("Configuration updated successfully")
 
 
@@ -592,7 +608,9 @@ def main(
         while not stop_bg_proc_flag.value:
             try:
                 if powerplan_restarted_flag.value:
-                    new_proc.send_power_state_fixed_message(notifications_queue)
+                    new_proc.send_power_state_fixed_message(
+                        notifications_queue, new_proc.config
+                    )
                     powerplan_restarted_flag.value = False
                 if settings_updated_flag.value:
                     new_proc.update_config(load_config())

@@ -76,17 +76,15 @@ Love the app? Want to help make it even better? Contributions are welcome!
 -   [x] Core Battery Monitoring
 -   [x] Automatic Power Saver Mode
 -   [x] Detailed Battery Health Stats
--   [ ] Custom Notification Sounds
--   [ ] More Themes
+-   [x] Custom Notification Sounds
 -   [ ] More Biryani Puns! 🍛
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU AFFERO General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
 ---
 
 **Made with ❤️ and lots of 🍛 by Tejas!**
 
 _Remember: A charged laptop is a happy laptop, and a happy laptop makes for happy coding!_ 💻✨
-

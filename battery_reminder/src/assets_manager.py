@@ -66,7 +66,7 @@ SOUND_TYPES = typing.Literal["too-low", "perfect-battery", "battery-overflow"]
 
 
 def get_default_sound(sound_type: SOUND_TYPES):
-    return str(SOUND_FOLDER / f"{sound_type}.mp3")
+    return str(SOUND_FOLDER / f"{sound_type}.wav")
 
 
 def get_tkinter_icon():
@@ -88,4 +88,4 @@ def get_emoji(type: EMOJI_TYPES | list[EMOJI_TYPES]):
     return icon
 
 
-__all__ = ["APP_ICONS", "get_emoji", "SOUND_TYPES", "get_default_sound"]
+__all__ = ["APP_ICONS", "get_emoji", "get_default_sound"]

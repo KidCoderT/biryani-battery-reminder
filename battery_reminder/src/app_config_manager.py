@@ -43,13 +43,9 @@ Expected structure for the config.json file:
         "remind_when_power_state_changes": true,
         "default_power_plan": <computer_default>,
 
-        "play_low_battery_sound": true,
-        "play_high_battery_sound": true,
-        "play_overflow_battery_sound": true,
-
-        "low_battery_sound_path": "./assets/sounds/too-low.mp3",
-        "high_battery_sound_path": "./assets/sounds/perfect-battery.mp3",
-        "overflow_battery_sound_path": "./assets/sounds/battery-overflow.mp3",
+        "low_battery_sound": "./assets/sounds/too-low.mp3",
+        "high_battery_sound": "./assets/sounds/perfect-battery.mp3",
+        "overflow_battery_sound": "./assets/sounds/battery-overflow.mp3",
     },
     "GUI_SETTINGS": {
         "theme": "system",
@@ -83,13 +79,16 @@ class ProcSettings(TypedDict):
         "UNKNOWN", "Power saver", "Balanced", "High performance", "Ultimate performance"
     ]
 
-    play_low_battery_sound: bool
-    play_high_battery_sound: bool
-    play_overflow_battery_sound: bool
-
-    low_battery_sound_path: str
-    high_battery_sound_path: str
-    overflow_battery_sound_path: str
+    # Sound configurations for all message types
+    low_battery_sound: str | None
+    high_battery_sound: str | None
+    overflow_battery_sound: str | None
+    welcome_sound: str | None  # Single sound for both welcome charging and discharging
+    started_charging_sound: str | None
+    charger_disconnected_sound: str | None
+    settings_updated_sound: str | None
+    power_state_changed_sound: str | None
+    power_state_restored_sound: str | None
 
 
 class GUISettings(TypedDict):
@@ -119,12 +118,16 @@ DEFAULT_CONFIG_DATA: AppConfig = {
         "save_power_state_at_percent": 20,
         "remind_when_power_state_changes": True,
         "default_power_plan": get_current_scheme_name(),
-        "play_low_battery_sound": True,
-        "play_high_battery_sound": True,
-        "play_overflow_battery_sound": True,
-        "low_battery_sound_path": get_default_sound("too-low"),
-        "high_battery_sound_path": get_default_sound("perfect-battery"),
-        "overflow_battery_sound_path": get_default_sound("battery-overflow"),
+        # Sound configurations for all message types
+        "low_battery_sound": get_default_sound("too-low"),
+        "high_battery_sound": get_default_sound("perfect-battery"),
+        "overflow_battery_sound": get_default_sound("battery-overflow"),
+        "welcome_sound": None,  # Single sound for both welcome charging and discharging
+        "started_charging_sound": None,
+        "charger_disconnected_sound": None,
+        "settings_updated_sound": None,
+        "power_state_changed_sound": None,
+        "power_state_restored_sound": None,
     },
     "GUI_SETTINGS": {"theme": "light"},
 }

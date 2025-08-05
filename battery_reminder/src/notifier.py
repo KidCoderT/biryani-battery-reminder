@@ -13,12 +13,13 @@
 import queue
 import asyncio
 from battery_reminder.src.app_config_manager import get_app_name
-from desktop_notifier import DesktopNotifier, Icon, Urgency, Button, Sound
+from desktop_notifier import DEFAULT_SOUND, DesktopNotifier, Icon, Urgency, Button
 import multiprocessing
-import playsound3
+from nava import play, NavaBaseError
 
 from battery_reminder.src.assets_manager import get_emoji
 from battery_reminder.src.logger_config import logger
+from rich import print
 
 NOTIFICATION_LIMIT = 5
 
@@ -54,11 +55,25 @@ class Notifier:
                 for button in params.pop("buttons")
             ]
 
-        if "sound" in params:
+        sound = None
+        if "sound" in params and isinstance(params["sound"], str):
             sound = params.pop("sound")
-            playsound3.playsound(sound)
 
         notification = await self.notifier.send(**params)
+
+        if sound and sound != DEFAULT_SOUND:
+            try:
+                play(sound, async_mode=True)
+            except NavaBaseError as e:
+                logger.error("Failed to play sound")
+                logger.error(str(e))
+                await self.notifier.send(
+                    "ERROR IN SOUND PLAYBACK",
+                    f"Failed to play sound {sound}. Given sound file doesnt exist.",
+                    urgency=Urgency.Critical,
+                    icon=Icon(get_emoji("too-much-2")),
+                )
+
         self.notifications.append(notification)
         return notification
 
@@ -101,6 +116,7 @@ class Notifier:
                 icon="oh-no",
                 urgency=Urgency.Critical,
                 timeout=0,
+                sound=DEFAULT_SOUND,
             )
         )
 
