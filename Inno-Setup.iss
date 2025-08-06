@@ -2,8 +2,8 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Biryani Battery Reminder"
-#define InstallerName "Battery_Reminder_Installer (V1)"
-#define MyAppVersion "1.0.0"
+#define InstallerName "Battery_Reminder_Installer (V2)"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "Tejas, Inc"
 #define MyAppURL "https://www.example.com/"
 #define MyAppExeName "biryani-battery-reminder.exe"
@@ -22,11 +22,11 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
-LicenseFile=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\LICENSE
+LicenseFile=LICENSE
 PrivilegesRequired=lowest
-OutputDir=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\build
+OutputDir=.\build
 OutputBaseFilename={#InstallerName}
-SetupIconFile=C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\assets\downloader-icon.ico
+SetupIconFile=.\assets\downloader-icon.ico
 SolidCompression=yes
 WizardStyle=modern
 
@@ -37,13 +37,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\build\exe.win-amd64-3.13\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\build\exe.win-amd64-3.13\assets\*"; DestDir: "{app}/assets"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\build\exe.win-amd64-3.13\lib\*"; DestDir: "{app}/lib"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\build\exe.win-amd64-3.13\share\*"; DestDir: "{app}/share"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\build\exe.win-amd64-3.13\frozen_application_license.txt"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\build\exe.win-amd64-3.13\python3.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\tejas_uvx2fi9\DevStuff\battery-reminder\build\exe.win-amd64-3.13\python313.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "build\exe.win-amd64-3.13\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "build\exe.win-amd64-3.13\assets\*"; DestDir: "{app}/assets"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "build\exe.win-amd64-3.13\lib\*"; DestDir: "{app}/lib"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "build\exe.win-amd64-3.13\share\*"; DestDir: "{app}/share"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "build\exe.win-amd64-3.13\frozen_application_license.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "build\exe.win-amd64-3.13\python3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "build\exe.win-amd64-3.13\python313.dll"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
