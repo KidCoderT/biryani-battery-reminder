@@ -1317,24 +1317,7 @@ class AppSettingUI:
             value_frame.grid(row=row, column=1, sticky=EW, padx=(0, 10), pady=(5, 15))
             value_frame.grid_columnconfigure(0, weight=1)
 
-            def get_display_value(value):
-                if value is None:
-                    return "None"
-                elif isinstance(value, str) and os.path.exists(value):
-                    filename = os.path.basename(value)
-                    # foldername = value.split("\\")[-2]
-                    # small_name = len(foldername + "\\" + filename) < 20
-                    return "...\\" + (
-                        # (foldername[:5] + "...\\" + filename)
-                        # if not small_name
-                        # else (foldername + "\\" + filename)
-                        filename
-                    )
-                else:
-                    print(value)
-                    return str(value)
-
-            value_var = tk.StringVar(value=get_display_value(current_value))
+            value_var = tk.StringVar(value=self.get_display_value(current_value))
             value_label = ttk.Label(value_frame, textvariable=value_var, anchor=W)
             value_label.pack(side=LEFT, fill=X, expand=True)
 
@@ -1374,6 +1357,8 @@ class AppSettingUI:
                 clear_button, f"Remove the {label_text.lower()}", bootstyle="warning"
             )
 
+        # add a small grey / light label that says only wav files can be used.
+
         for i, config in enumerate(sound_settings_config):
             create_sound_setting_row(sound_settings_labelframe, config, i)
 
@@ -1384,6 +1369,22 @@ class AppSettingUI:
         self.reset_default_button.pack(side=LEFT, padx=(0, 10))
         self.reset_button.pack(side=LEFT, padx=(0, 10))
         self.save_button.pack(side=LEFT)
+
+    def get_display_value(self, value):
+        if value is None:
+            return "None"
+        elif isinstance(value, str) and os.path.exists(value):
+            filename = os.path.basename(value)
+            # foldername = value.split("\\")[-2]
+            # small_name = len(foldername + "\\" + filename) < 20
+            return "...\\" + (
+                # (foldername[:5] + "...\\" + filename)
+                # if not small_name
+                # else (foldername + "\\" + filename)
+                filename
+            )
+        else:
+            return str(value)
 
     def _edit_sound_file(self, key: str, value_var: tk.StringVar) -> None:
         """Open file dialog to select a sound file (local state only)."""
@@ -1404,7 +1405,7 @@ class AppSettingUI:
         if file_path:
             self.current_sound_data[key] = str(Path(file_path))
             filename = os.path.basename(file_path)
-            display_value = filename[-10:] if len(filename) > 10 else filename
+            display_value = self.get_display_value(file_path)
             value_var.set(display_value)
             self._update_button_states()
             logger.info(f"Sound file updated for {key}: {file_path}")
