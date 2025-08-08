@@ -7,6 +7,7 @@
 #define MyAppPublisher "Tejas, Inc"
 #define MyAppURL "https://www.example.com/"
 #define MyAppExeName "biryani-battery-reminder.exe"
+#define MutexName "BiryaniBatteryReminder_MUTEX"
 
 [Setup]
 AppId={{A0B8AD10-A4A3-41C5-8670-225C0FA603C3}
@@ -54,68 +55,156 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-Type: filesandordirs; Name: "{app}\*"
-Type: dirifempty; Name: "{app}"
+; Don't perform mass delete. All deletion is handled by DeinitializeUninstall
+; Type: filesandordirs; Name: "{app}\*"
+; Type: dirifempty; Name: "{app}"
 
 [Code]
-// --- Clean install: Delete all contents of {app} before copying new files ---
-procedure DeleteAppFolderContents;
-var
-  FindRec: TFindRec;
-begin
-  if DirExists(ExpandConstant('{app}')) then begin
-    if FindFirst(ExpandConstant('{app}\*'), FindRec) then begin
-      try
-        repeat
-          if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
-            DelTree(ExpandConstant('{app}\') + FindRec.Name, True, True, True);
-        until not FindNext(FindRec);
-      finally
-        FindClose(FindRec);
-      end;
-    end;
-  end;
-end;
+// Windows API declarations
+function OpenMutex(dwDesiredAccess: DWORD; bInheritHandle: BOOL; lpName: PAnsiChar): THandle;
+external 'OpenMutexA@kernel32.dll stdcall';
 
-procedure CurStepChanged(CurStep: TSetupStep);
-begin
-  // Before installing files, clear the app folder
-  if CurStep = ssInstall then
-    DeleteAppFolderContents;
-end;
+function CloseHandle(hObject: THandle): BOOL;
+external 'CloseHandle@kernel32.dll stdcall';
 
-// --- Prevent uninstall if app is running ---
-function IsAppRunning(const ExeName: String): Boolean;
+// Constants
+const
+  MUTEX_ALL_ACCESS = $1F0001;
+
+// Check if the app is running using the same mutex as the Python app
+function IsAppRunningMutex(): Boolean;
 var
-  SWbemLocator, WbemServices, WbemObjectSet, WbemObject: Variant;
-  Query: String;
-  Enum: Variant;
+  MutexHandle: THandle;
 begin
   Result := False;
   try
-    SWbemLocator := CreateOleObject('WbemScripting.SWbemLocator');
-    WbemServices := SWbemLocator.ConnectServer('.', 'root\CIMV2');
-    Query := 'SELECT * FROM Win32_Process WHERE Name = "' + ExeName + '"';
-    WbemObjectSet := WbemServices.ExecQuery(Query);
-    Enum := WbemObjectSet._NewEnum;
-    while not VarIsNull(Enum) and Enum.Next(1, WbemObject, 0) do
+    // Try to open the existing mutex (same name as Python app uses)
+    MutexHandle := OpenMutex(MUTEX_ALL_ACCESS, False, '{#MutexName}');
+    if MutexHandle <> 0 then
     begin
+      // Mutex exists, app is running
+      CloseHandle(MutexHandle);
       Result := True;
-      break;
+    end
+    else
+    begin
+      // Mutex doesn't exist, app is not running
+      Result := False;
     end;
   except
-    // If WMI is not available, allow uninstall
+    // If any error occurs, assume app is not running
     Result := False;
   end;
 end;
 
+// On uninstall, block if app is running
 function InitializeUninstall(): Boolean;
 begin
-  if IsAppRunning('{#MyAppExeName}') then
+  if IsAppRunningMutex() then
   begin
     MsgBox('{#MyAppName} is currently running. Please close it before uninstalling.', mbError, MB_OK);
-    Result := False; // Cancel uninstall
+    Result := False;
   end
   else
-    Result := True; // Continue uninstall
+    Result := True;
+end;
+
+// Check if a file has .json extension
+function IsJsonFile(const FileName: String): Boolean;
+var
+  FileExt: String;
+begin
+  FileExt := LowerCase(ExtractFileExt(FileName));
+  Result := (FileExt = '.json');
+end;
+
+// Delete all files/folders except json files - improved version
+procedure DeleteAppExceptJsons(const Dir: String);
+var
+  FindRec: TFindRec;
+  FilePath: String;
+  FilesToDelete: TArrayOfString;
+  DirsToDelete: TArrayOfString;
+  I: Integer;
+begin
+  // First pass: collect files to delete and recurse into subdirectories
+  if FindFirst(Dir + '\*', FindRec) then
+  try
+    repeat
+      if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+      begin
+        FilePath := Dir + '\' + FindRec.Name;
+        
+        if FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0 then
+        begin
+          // Directory: recurse first, then mark for deletion
+          DeleteAppExceptJsons(FilePath);
+          SetArrayLength(DirsToDelete, GetArrayLength(DirsToDelete) + 1);
+          DirsToDelete[GetArrayLength(DirsToDelete) - 1] := FilePath;
+        end
+        else
+        begin
+          // File: only mark for deletion if NOT .json extension
+          if not IsJsonFile(FindRec.Name) then
+          begin
+            SetArrayLength(FilesToDelete, GetArrayLength(FilesToDelete) + 1);
+            FilesToDelete[GetArrayLength(FilesToDelete) - 1] := FilePath;
+          end;
+        end;
+      end;
+    until not FindNext(FindRec);
+  finally
+    FindClose(FindRec);
+  end;
+
+  // Second pass: delete collected files
+  for I := 0 to GetArrayLength(FilesToDelete) - 1 do
+  begin
+    try
+      DeleteFile(FilesToDelete[I]);
+    except
+      // Log or ignore deletion errors for individual files
+    end;
+  end;
+
+  // Third pass: delete empty directories
+  for I := 0 to GetArrayLength(DirsToDelete) - 1 do
+  begin
+    try
+      RemoveDir(DirsToDelete[I]);
+    except
+      // Ignore errors - directory might not be empty if it contains JSON files
+    end;
+  end;
+end;
+
+procedure DeinitializeUninstall();
+var
+  AppDir: String;
+begin
+  // On uninstall, cleanup all files and folders except .json files
+  AppDir := ExpandConstant('{app}');
+  try
+    DeleteAppExceptJsons(AppDir);
+    // Try to remove the main app directory (will fail if JSON files remain, which is expected)
+    RemoveDir(AppDir);
+  except
+    // Ignore errors during cleanup
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  AppDir: String;
+begin
+  // Before installing files, clear the app folder except JSON files
+  if CurStep = ssInstall then
+  begin
+    AppDir := ExpandConstant('{app}');
+    try
+      DeleteAppExceptJsons(AppDir);
+    except
+      // Ignore errors during pre-install cleanup
+    end;
+  end;
 end;

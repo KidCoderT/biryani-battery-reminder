@@ -69,7 +69,8 @@ battery_reminder/
 -   `batteryinfo`: For battery information
 -   `pystray`: For system tray functionality
 -   `ttkbootstrap`: For modern UI components
--   `psutil`: For system information
+-   `cx-freeze`: For building executables
+-   `nava`: For notifications sounds
 
 ## 🐛 Reporting Bugs
 

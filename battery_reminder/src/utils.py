@@ -15,6 +15,8 @@ from threading import Lock, Thread
 
 from loguru import logger
 
+from battery_reminder.src.app_config_manager import MUTEX_NAME
+
 
 class SingletonMeta(type):
     """
@@ -56,20 +58,70 @@ def is_frozen():
     return getattr(sys, "frozen", False)  # True if frozen, False otherwise[1][6]
 
 
-def is_already_running():
-    """Check if another instance of this executable is running."""
-    import psutil  # Requires 'psutil' package
+def check_and_setup_mutex():
+    """
+    Check if another instance is running using Windows mutex.
+    Returns:
+        True: Another instance is already running (current app should exit)
+        False: No other instance, mutex created successfully (current app should continue)
+    """
+    try:
+        import ctypes
 
-    current_pid = os.getpid()
-    exe_name = os.path.basename(sys.executable if is_frozen() else sys.argv[0])
-    count = 0
-    for proc in psutil.process_iter(["pid", "name"]):
-        try:
-            if proc.info["name"] == exe_name and proc.info["pid"] != current_pid:
-                logger.debug(
-                    f"Process {proc.info['pid']} - {proc.info['name']} already running"
-                )
-                count += 1
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-    return count > 0
+        kernel32 = ctypes.windll.kernel32
+
+        # Constants
+        ERROR_ALREADY_EXISTS = 183
+
+        # Create/open mutex (local to current user session)
+        mutex_name = MUTEX_NAME
+        mutex_handle = kernel32.CreateMutexW(None, False, mutex_name)
+
+        if mutex_handle == 0:
+            logger.warning("Failed to create mutex - assuming no other instance")
+            return False  # Graceful degradation: allow app to continue
+
+        # Check if mutex already existed
+        already_exists = kernel32.GetLastError() == ERROR_ALREADY_EXISTS
+
+        if already_exists:
+            # Another instance is running, close handle and signal to exit
+            kernel32.CloseHandle(mutex_handle)
+            logger.debug(
+                "Another instance detected via mutex - current app should exit"
+            )
+            return True
+        else:
+            # First instance - create and keep mutex alive for app duration
+            global _mutex_handle
+            _mutex_handle = mutex_handle
+            logger.debug("First instance - mutex created and stored globally")
+            return False
+
+    except Exception as e:
+        logger.warning(f"Mutex check failed: {e} - allowing app to continue")
+        # Graceful degradation: if mutex fails, assume no other instance
+        return False
+
+
+# def cleanup_mutex():
+#     """
+#     Optional: Explicitly clean up mutex on app shutdown.
+#     Note: Windows will automatically clean up when process exits.
+#     """
+#     global _mutex_handle
+#     if _mutex_handle:
+#         try:
+#             import ctypes
+#
+#             kernel32 = ctypes.windll.kernel32
+#             kernel32.CloseHandle(_mutex_handle)
+#             logger.debug("Mutex handle closed explicitly")
+#         except Exception as e:
+#             logger.error(f"Error closing mutex handle: {e}")
+#         finally:
+#             _mutex_handle = None
+#
+
+# Global variable to keep mutex handle alive for app duration
+_mutex_handle = None

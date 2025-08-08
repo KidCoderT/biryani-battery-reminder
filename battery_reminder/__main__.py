@@ -34,7 +34,7 @@ from battery_reminder.src import (
     remove_from_startup,
     is_in_startup,
 )
-from battery_reminder.src import is_frozen, is_already_running
+from battery_reminder.src import is_frozen, check_and_setup_mutex
 from battery_reminder.src import Notifier
 from battery_reminder.src import logger
 from ctypes import c_bool
@@ -44,7 +44,7 @@ class App:
     def __init__(self):
         logger.info("Initializing application...")
         self.app_name = get_app_name()
-        self.config = load_config()
+        self.config = load_config(True)
 
         self.notification_queue = multiprocessing.Queue()
         self.critical_notifications_queue = multiprocessing.Queue()
@@ -257,7 +257,7 @@ async def main():
     try:
         logger.debug("NEW PROC STARTED!! -> CHECKING IF ANOTHER INSTANCE IS RUNNING")
 
-        if is_already_running():
+        if check_and_setup_mutex():
             logger.warning("Another instance is already running")
             messagebox.showwarning(
                 "Application Already Running",

@@ -42,7 +42,6 @@ setup(
                 "ttkbootstrap",
                 "ttkbootstrap.utility",
                 "pystray",
-                "psutil",
                 "nava",
             ],
             "zip_include_packages": ["desktop_notifier"],

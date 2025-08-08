@@ -26,6 +26,7 @@ CONFIG_FILE_NAME = (
 )
 INSTALL_FILE_NAME = f"{APP_NAME.split('-')[0].lower()}_on_open_config.txt"
 SHORTCUT_NAME = "Biryani Battery Reminder"
+MUTEX_NAME = "BiryaniBatteryReminder_MUTEX"
 
 """
 Expected structure for the config.json file:
@@ -161,7 +162,7 @@ else:
 logger.debug(f"Config path: {config_path}")
 
 
-def load_config() -> AppConfig:
+def load_config(first_run=False) -> AppConfig:
     """
     Loads the configuration from the JSON file.
     If the file doesn't exist, it creates it with default values.
@@ -183,8 +184,13 @@ def load_config() -> AppConfig:
                 if section_key in loaded_config_raw and isinstance(
                     loaded_config_raw[section_key], dict
                 ):
-                    # Update section with loaded values, preserving defaults for missing keys
-                    config[section_key].update(loaded_config_raw[section_key])
+                    for key, value in loaded_config_raw[section_key].items():
+                        if key in section_defaults:
+                            config[section_key][key] = value
+                        else:
+                            logger.warning(
+                                f"Key '{key}' missing or malformed in config file. Using default value."
+                            )
                 else:
                     logger.warning(
                         f"Section '{section_key}' missing or malformed in config file. Using defaults."
