@@ -196,3 +196,5 @@ cython_debug/
 battery_reminder/biryani_config.json
 battery_reminder/biryani_on_open_config.txt
 logs
+
+.idea

@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      Biryani Battery Reminder — Because your laptop deserves the royal
+      treatment 👑
+    </title>
+    <meta
+      name="description"
+      content="A delightful, intelligent battery companion for Windows. Fun emoji notifications, automatic power saver switching, detailed battery health stats — 100% local, open source, free."
+    />
+    <meta property="og:title" content="Biryani Battery Reminder" />
+    <meta
+      property="og:description"
+      content="Protect your battery's health with fun, emoji-driven notifications and automatic power management. Windows 10 & 11."
+    />
+    <meta property="og:image" content="public/images/BothOfThemTogether.png" />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="public/icon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- ============ NAV ============ -->
+    <header class="nav-wrap">
+      <nav class="nav container">
+        <a href="#" class="brand" aria-label="Biryani Battery Reminder — home">
+          <img
+            src="public/images/LightModeHeadCleaned.png"
+            alt=""
+            class="brand-icon light-only"
+          />
+          <img
+            src="public/images/DarkModeHeadCleaned.png"
+            alt=""
+            class="brand-icon dark-only"
+          />
+          <span class="brand-name"
+            >Biryani<span class="brand-accent">Battery</span></span
+          >
+        </a>
+        <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="#duo">Meet the Duo</a>
+          <a href="#install">Install</a>
+          <a href="#privacy">Privacy</a>
+        </div>
+        <div class="nav-actions">
+          <button
+            id="theme-toggle"
+            class="theme-toggle"
+            aria-label="Toggle light and dark mode"
+            title="Toggle theme"
+          >
+            <span class="toggle-sun">☀️</span>
+            <span class="toggle-moon">🌙</span>
+          </button>
+          <a
+            href="https://github.com/KidCoderT/biryani-battery-reminder"
+            class="btn btn-ghost btn-sm"
+            target="_blank"
+            rel="noopener"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+              />
+            </svg>
+            GitHub
+          </a>
+          <a
+            href="https://github.com/KidCoderT/biryani-battery-reminder/releases"
+            class="btn btn-primary btn-sm"
+            target="_blank"
+            rel="noopener"
+            >Download</a
+          >
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <!-- ============ HERO ============ -->
+      <section class="hero">
+        <div class="container hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">🪟 Free &amp; open source for Windows 10 / 11</p>
+            <h1>
+              Because your laptop deserves the
+              <span class="highlight">royal treatment</span> 👑
+            </h1>
+            <p class="lede">
+              Biryani Battery Reminder is a delightful, intelligent battery
+              companion that protects your battery's health, extends its
+              lifespan, and brings a smile to your face with fun, emoji-driven
+              notifications. Goodbye battery anxiety — hello biryani bliss! 🍛🔋
+            </p>
+            <div class="hero-cta">
+              <a
+                href="https://github.com/KidCoderT/biryani-battery-reminder/releases"
+                class="btn btn-primary btn-lg"
+                target="_blank"
+                rel="noopener"
+              >
+                ⬇️ Download for Windows
+              </a>
+              <a
+                href="https://github.com/KidCoderT/biryani-battery-reminder"
+                class="btn btn-ghost btn-lg"
+                target="_blank"
+                rel="noopener"
+              >
+                ⭐ Star on GitHub
+              </a>
+            </div>
+            <ul class="hero-badges">
+              <li>✅ 100% local</li>
+              <li>✅ No tracking, ever</li>
+              <li>✅ Lightweight</li>
+            </ul>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="hero-blob"></div>
+            <img
+              src="public/images/LightModeFullBodyCleaned.png"
+              alt=""
+              class="hero-mascot light-only"
+            />
+            <img
+              src="public/images/DarkModeFullBodyCleaned.png"
+              alt=""
+              class="hero-mascot dark-only"
+            />
+            <div class="float-card float-card-1">
+              <span class="float-emoji">🔌</span>
+              <div>
+                <strong>Low charge!</strong><br /><small
+                  >Plug it in, friend 🥺</small
+                >
+              </div>
+            </div>
+            <div class="float-card float-card-2">
+              <span class="float-emoji">🌱</span>
+              <div>
+                <strong>Power Saver on</strong><br /><small
+                  >Squeezing every drop 💧</small
+                >
+              </div>
+            </div>
+            <div class="float-card float-card-3">
+              <span class="float-emoji">🔋</span>
+              <div>
+                <strong>Fully charged!</strong><br /><small
+                  >Unplug for battery bliss ✨</small
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ TICKER ============ -->
+      <div class="ticker" aria-hidden="true">
+        <div class="ticker-track">
+          <span>🍛 Biryani bliss</span><span>🔋 Healthier battery</span
+          ><span>👑 Royal treatment</span><span>🧠 Smart alerts</span
+          ><span>⚡ Auto power saver</span><span>💖 Cute notifications</span
+          ><span>🛡️ Zero tracking</span><span>🪶 Featherweight</span>
+          <span>🍛 Biryani bliss</span><span>🔋 Healthier battery</span
+          ><span>👑 Royal treatment</span><span>🧠 Smart alerts</span
+          ><span>⚡ Auto power saver</span><span>💖 Cute notifications</span
+          ><span>🛡️ Zero tracking</span><span>🪶 Featherweight</span>
+        </div>
+      </div>
+
+      <!-- ============ FEATURES ============ -->
+      <section id="features" class="section">
+        <div class="container">
+          <p class="section-eyebrow">✨ What makes it special</p>
+          <h2 class="section-title">A complete meal for your battery</h2>
+          <p class="section-sub">
+            Just like a perfect biryani, this app is the all-in-one solution for
+            total battery peace of mind. Not just a utility — a joyful
+            experience, packed with personality.
+          </p>
+
+          <div class="feature-grid">
+            <article class="feature-card">
+              <div class="feature-icon">🧠</div>
+              <h3>Intelligent Monitoring</h3>
+              <p>
+                Friendly nudges when battery runs low, reminders to unplug at
+                the optimal level, and urgent overcharge warnings — all with
+                customizable thresholds and smart timers.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon">⚡</div>
+              <h3>Automatic Power Management</h3>
+              <p>
+                Auto-switches to
+                <strong>Power Saver</strong> when the battery gets low, then
+                intelligently restores your preferred plan the moment you start
+                charging. Zero effort.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon">💖</div>
+              <h3>Engaging Experience</h3>
+              <p>
+                A cast of cute emoji characters delivers every alert, turning a
+                mundane task into a delightful interaction. Modern
+                <code>ttkbootstrap</code> UI with light &amp; dark modes.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon">📊</div>
+              <h3>Battery Health Dashboard</h3>
+              <p>
+                Go beyond the percentage — compare current full capacity to
+                design capacity, and dig into voltage, temperature, energy rate,
+                manufacturer, and more.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon">⚙️</div>
+              <h3>Seamless System Integration</h3>
+              <p>
+                Launches with Windows, lives quietly in your system tray with a
+                dynamic status icon, and offers one-click start/stop of the
+                monitoring service.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon">🔔</div>
+              <h3>Custom Notification Sounds</h3>
+              <p>
+                Pick the sounds that make you smile. Fine-tune how often each
+                battery state reminds you — gentle for low, persistent for
+                overcharge.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ MEET THE DUO ============ -->
+      <section id="duo" class="section section-alt">
+        <div class="container">
+          <p class="section-eyebrow">💞 Your battery's bodyguards</p>
+          <h2 class="section-title">Meet the Saver Duo</h2>
+          <p class="section-sub">
+            Light and Dark — two sides of the same saver. They match your system
+            theme, watch over your charge, and are never shy about telling you
+            to plug it in.
+          </p>
+
+          <div class="duo-hero">
+            <img
+              src="public/images/BothOfThemTogetherCleaned.png"
+              alt="The light-mode and dark-mode saver characters proudly holding a happy laptop together"
+            />
+          </div>
+
+          <div class="duo-grid">
+            <article class="duo-card duo-card-light">
+              <img
+                src="public/images/ChibiLightModeCleaned.png"
+                alt="Chibi light-mode saver waving urgently with the message: Low charge — plug it in!"
+              />
+              <h3>☀️ Light Saver</h3>
+              <p>
+                Bright, cheerful, and always on time. When your system rocks
+                light mode, he's the one popping up with a grin and a gentle
+                <em>“plug it in!”</em>
+              </p>
+            </article>
+            <article class="duo-card duo-card-dark">
+              <img
+                src="public/images/ChibiDarkModeCLeaned.png"
+                alt="Chibi dark-mode saver with glowing visor and the message: Low charge — plug it in!"
+              />
+              <h3>🌙 Dark Saver</h3>
+              <p>
+                Cool, collected, visor glowing at 2 AM. He takes the night
+                shift, syncing with your dark theme so late-night coding
+                sessions never kill the battery.
+              </p>
+            </article>
+          </div>
+
+          <p class="duo-tip">
+            💡 Try the theme toggle in the navbar — the duo follows you around
+            the whole site.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============ HOW IT WORKS / INSTALL ============ -->
+      <section id="install" class="section">
+        <div class="container">
+          <p class="section-eyebrow">🚀 Up and running in a minute</p>
+          <h2 class="section-title">Install once, smile forever</h2>
+
+          <ol class="steps">
+            <li class="step">
+              <span class="step-num">1</span>
+              <h3>Download</h3>
+              <p>
+                Grab the latest
+                <code>biryani-battery-reminder-vX.X.X.exe</code>
+                from the
+                <a
+                  href="https://github.com/KidCoderT/biryani-battery-reminder/releases"
+                  target="_blank"
+                  rel="noopener"
+                  >Releases page</a
+                >.
+              </p>
+            </li>
+            <li class="step">
+              <span class="step-num">2</span>
+              <h3>Run the setup wizard</h3>
+              <p>
+                A simple installer gets everything in place. Optionally enable
+                <strong>Run on Startup</strong> and forget about it.
+              </p>
+            </li>
+            <li class="step">
+              <span class="step-num">3</span>
+              <h3>Enjoy battery bliss</h3>
+              <p>
+                The app appears in your system tray and starts watching over
+                your battery right away. Right-click the icon for settings. 🎉
+              </p>
+            </li>
+          </ol>
+
+          <div class="install-cta">
+            <a
+              href="https://github.com/KidCoderT/biryani-battery-reminder/releases"
+              class="btn btn-primary btn-lg"
+              target="_blank"
+              rel="noopener"
+              >⬇️ Get the latest release</a
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PRIVACY ============ -->
+      <section id="privacy" class="section section-alt">
+        <div class="container privacy-grid">
+          <div>
+            <p class="section-eyebrow">🛡️ Privacy &amp; security</p>
+            <h2 class="section-title" style="text-align: left">
+              Your data never leaves your laptop
+            </h2>
+            <p class="privacy-lede">
+              No accounts, no cloud, no analytics. Biryani Battery Reminder is a
+              good old-fashioned desktop app that minds its own business — and
+              your battery's.
+            </p>
+            <ul class="privacy-list">
+              <li>
+                <strong>100% local</strong> — runs entirely on your machine, no
+                internet required
+              </li>
+              <li>
+                <strong>No data collection</strong> — the app collects nothing,
+                full stop
+              </li>
+              <li>
+                <strong>Open source</strong> — every line of code is yours to
+                inspect (AGPL-3.0)
+              </li>
+              <li><strong>No ads or tracking</strong> — ever</li>
+            </ul>
+          </div>
+          <div class="privacy-art" aria-hidden="true">
+            <img
+              src="public/images/LightModeHeadCleaned.png"
+              alt=""
+              class="light-only"
+            />
+            <img
+              src="public/images/DarkModeHeadCleaned.png"
+              alt=""
+              class="dark-only"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ ROADMAP ============ -->
+      <section class="section">
+        <div class="container">
+          <p class="section-eyebrow">🎯 Roadmap</p>
+          <h2 class="section-title">Cooked, simmering &amp; on the menu</h2>
+          <ul class="roadmap">
+            <li class="done"><span>✔</span> Core battery monitoring</li>
+            <li class="done"><span>✔</span> Automatic Power Saver mode</li>
+            <li class="done"><span>✔</span> Detailed battery health stats</li>
+            <li class="done"><span>✔</span> Custom notification sounds</li>
+            <li class="todo"><span>🍛</span> More biryani puns!</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ CONTRIBUTE / FINAL CTA ============ -->
+      <section class="section cta-band">
+        <div class="container cta-inner">
+          <h2>Ready for a healthier, happier battery?</h2>
+          <p>
+            A charged laptop is a happy laptop, and a happy laptop makes for
+            happy coding! 💻✨
+          </p>
+          <div class="hero-cta cta-center">
+            <a
+              href="https://github.com/KidCoderT/biryani-battery-reminder/releases"
+              class="btn btn-primary btn-lg"
+              target="_blank"
+              rel="noopener"
+              >⬇️ Download for Windows</a
+            >
+            <a
+              href="https://github.com/KidCoderT/biryani-battery-reminder/blob/main/CONTRIBUTING.md"
+              class="btn btn-ghost btn-lg"
+              target="_blank"
+              rel="noopener"
+              >🤝 Contribute</a
+            >
+          </div>
+          <p class="cta-links">
+            🐛
+            <a
+              href="https://github.com/KidCoderT/biryani-battery-reminder/issues/new?template=bug_report.md"
+              target="_blank"
+              rel="noopener"
+              >Report a bug</a
+            >
+            &nbsp;·&nbsp; 💡
+            <a
+              href="https://github.com/KidCoderT/biryani-battery-reminder/issues/new?template=feature_request.md"
+              target="_blank"
+              rel="noopener"
+              >Suggest a feature</a
+            >
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="footer">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <img
+            src="public/images/LightModeHeadCleaned.png"
+            alt=""
+            class="brand-icon light-only"
+          />
+          <img
+            src="public/images/DarkModeHeadCleaned.png"
+            alt=""
+            class="brand-icon dark-only"
+          />
+          <span>Biryani Battery Reminder</span>
+        </div>
+        <p>Made with ❤️ and lots of 🍛 by <strong>Tejas</strong></p>
+        <p class="footer-fine">
+          Licensed under
+          <a
+            href="https://github.com/KidCoderT/biryani-battery-reminder/blob/main/LICENSE"
+            target="_blank"
+            rel="noopener"
+            >AGPL-3.0</a
+          >
+          &nbsp;·&nbsp;
+          <a
+            href="https://github.com/KidCoderT/biryani-battery-reminder"
+            target="_blank"
+            rel="noopener"
+            >Source on GitHub</a
+          >
+        </p>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
