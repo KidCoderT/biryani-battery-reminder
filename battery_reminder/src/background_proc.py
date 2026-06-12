@@ -531,11 +531,12 @@ class BackgroundProcessManager:
                     ):
                         if powerplan.get_current_scheme_name() == "Power saver":
                             logger.debug("Power saver mode already active")
-                        else:
-                            powerplan.change_current_scheme_to_powersaver()
+                            self.power_state_changed = True
+                        elif powerplan.change_current_scheme_to_powersaver():
                             self.send_power_state_changed_message()
-
-                        self.power_state_changed = True
+                            self.power_state_changed = True
+                        else:
+                            logger.error("Failed to switch to Power Saver mode")
 
                 else:
                     charge_amount = self.battery.percent.value

@@ -38,12 +38,15 @@ else:
     ASSETS_FOLDER = project_root_dir / "assets"
 
 ASSETS_FOLDER = ASSETS_FOLDER.absolute()
-assert ASSETS_FOLDER.exists()
+if not ASSETS_FOLDER.exists():
+    raise FileNotFoundError(f"Assets folder not found: {ASSETS_FOLDER}")
 
 
 def load_image(path: Path):
-    assert path.exists(), f"IMAGE '{path}' DOESNT EXIST"
-    assert path.is_file(), f"IMAGE '{path}' IS INVALID TYPE!!"
+    if not path.exists():
+        raise FileNotFoundError(f"IMAGE '{path}' DOESNT EXIST")
+    if not path.is_file():
+        raise FileNotFoundError(f"IMAGE '{path}' IS INVALID TYPE!!")
     return Image.open(path)
 
 
@@ -83,8 +86,10 @@ def get_emoji(type: EMOJI_TYPES | list[EMOJI_TYPES]):
     else:
         icon = EMOJI[type]
 
-    assert icon.exists(), f"ICON '{type}' DOESNT EXITS IN ASSETS FOLDER"
-    assert icon.is_file(), f"ICON '{type}' IS INVALID TYPE!!"
+    if not icon.exists():
+        raise FileNotFoundError(f"ICON '{type}' DOESNT EXIST IN ASSETS FOLDER")
+    if not icon.is_file():
+        raise FileNotFoundError(f"ICON '{type}' IS INVALID TYPE!!")
     return icon
 
 
