@@ -26,6 +26,25 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
+    <script>
+      // Set theme before first paint to avoid a flash of the wrong mode.
+      // Priority: ?theme= URL override > saved choice > system preference.
+      // script.js only handles toggling after load — this is the sole decider.
+      (function () {
+        var theme = null;
+        try {
+          theme =
+            new URLSearchParams(location.search).get("theme") ||
+            localStorage.getItem("biryani-theme");
+        } catch (e) {}
+        if (theme !== "light" && theme !== "dark") {
+          theme = window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        }
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
   </head>
   <body>
     <!-- ============ NAV ============ -->
