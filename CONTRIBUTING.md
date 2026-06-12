@@ -7,7 +7,7 @@ Thank you for your interest in contributing to Biryani Battery Reminder! This do
 ### Prerequisites
 
 -   **Python 3.13** (required as per project configuration) Although it should work with any version above 3.11
--   **Poetry** for dependency management
+-   **uv** for dependency management (`pip install uv` or see [uv docs](https://docs.astral.sh/uv/))
 -   **Windows** (currently the only supported platform)
 -   **Git** for version control
 
@@ -23,18 +23,18 @@ Thank you for your interest in contributing to Biryani Battery Reminder! This do
 2. **Install Dependencies**
 
     ```bash
-    poetry install
+    uv sync --extra windows
     ```
 
 3. **Run the Application**
 
     ```bash
-    poetry run python -m battery_reminder
+    uv run python -m battery_reminder
     ```
 
 4. **Build the Executable** (for testing)
     ```bash
-    poetry run python -m cx_Freeze
+    uv run python build.py build
     ```
 
 ## 🛠️ Development Guidelines
@@ -44,13 +44,13 @@ Thank you for your interest in contributing to Biryani Battery Reminder! This do
 -   **Formatting**: Use `ruff` for code formatting and linting
 
     ```bash
-    poetry run ruff format .
-    poetry run ruff check .
+    uv run ruff format .
+    uv run ruff check .
     ```
 
 -   **Type Checking**: Use `pyright` for type checking
     ```bash
-    poetry run pyright
+    uv run pyright
     ```
 
 ### Project Structure
@@ -159,11 +159,7 @@ Then create a pull request using the provided template.
 
 ### Automated Testing
 
-Run the test suite:
-
-```bash
-poetry run pytest
-```
+> **Note**: There is no working automated test suite. Files in `tests/` are interactive manual scripts and are stale. Do not rely on them.
 
 ## 📚 Documentation
 
