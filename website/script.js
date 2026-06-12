@@ -13,10 +13,16 @@
     toggle.setAttribute("aria-pressed", String(theme === "dark"));
   }
 
-  toggle.setAttribute("aria-pressed", String(root.getAttribute("data-theme") === "dark"));
+  toggle.setAttribute(
+    "aria-pressed",
+    String(root.getAttribute("data-theme") === "dark"),
+  );
 
   toggle.addEventListener("click", () => {
     const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    // Enable transitions only for this deliberate switch — never on page load.
+    root.classList.add("is-transitioning");
+    setTimeout(() => root.classList.remove("is-transitioning"), 400);
     apply(next);
     try {
       localStorage.setItem("biryani-theme", next);
@@ -38,7 +44,7 @@
 // ---------- Scroll-reveal for cards and sections ----------
 (function () {
   const targets = document.querySelectorAll(
-    ".feature-card, .duo-card, .step, .roadmap li, .privacy-list li, .duo-hero, .section-title, .section-sub, .section-eyebrow"
+    ".feature-card, .duo-card, .step, .roadmap li, .privacy-list li, .duo-hero, .section-title, .section-sub, .section-eyebrow",
   );
 
   if (!("IntersectionObserver" in window)) return;
@@ -54,7 +60,7 @@
         }
       });
     },
-    { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
+    { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
   );
 
   targets.forEach((el) => observer.observe(el));
