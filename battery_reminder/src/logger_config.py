@@ -14,18 +14,9 @@ from pathlib import Path
 from loguru import logger
 
 
-def _get_log_dir() -> Path:
-    # Anchor logs next to the exe when frozen, or at the package root when running from source.
-    # A relative Path("logs") would write to wherever the CWD happens to be (e.g. C:\Windows\System32
-    # when auto-launched from Startup), which makes logs impossible to find.
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent / "logs"
-    return Path(__file__).parent.parent / "logs"
-
-
 def setup_logger():
     # Create logs directory if it doesn't exist
-    log_dir = _get_log_dir()
+    log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
 
     # Remove default logger
@@ -42,7 +33,7 @@ def setup_logger():
 
     # Add file logger with rotation - detailed for debugging
     logger.add(
-        str(log_dir / "debug.log"),
+        "logs/debug.log",
         rotation="2 MB",  # Rotate when file reaches 2MB
         retention="2 weeks",  # Keep logs for 2 weeks
         compression="zip",  # Compress rotated logs
@@ -56,7 +47,7 @@ def setup_logger():
 
     # Add error log file for critical errors
     logger.add(
-        str(log_dir / "error.log"),
+        "logs/error.log",
         rotation="2 MB",  # Rotate when file reaches 2MB
         retention="1 month",  # Keep error logs longer
         compression="zip",
