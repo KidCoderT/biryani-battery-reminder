@@ -40,7 +40,37 @@ Just like a perfect biryani is a complete, satisfying meal, this app is the all-
 
 ## 📸 Screenshots
 
-_Coming soon! The app is so beautiful, screenshots are being prepared with extra care_ 📸✨
+<table>
+  <tr>
+    <td><img src="website/public/app_screenshots/Battery%20Monitor%20Started.png" alt="Battery Monitor Started notification" width="400"/></td>
+    <td><img src="website/public/app_screenshots/Started%20Charging.png" alt="Started Charging notification" width="400"/></td>
+  </tr>
+  <tr>
+    <td><img src="website/public/app_screenshots/91.8%25%20Full%20(removal%20warning).png" alt="Removal warning notification at 91.8% full" width="400"/></td>
+    <td><img src="website/public/app_screenshots/Please%20Stop%20Charging!.png" alt="Please Stop Charging notification at 100%" width="400"/></td>
+  </tr>
+  <tr>
+    <td><img src="website/public/app_screenshots/Battery%20too%20low!.png" alt="Battery too low notification" width="400"/></td>
+    <td><img src="website/public/app_screenshots/Charger%20Disconnected.png" alt="Charger Disconnected notification" width="400"/></td>
+  </tr>
+</table>
+
+### ⚙️ Settings UI — Light & Dark
+
+<table>
+  <tr>
+    <td><img src="website/public/app_screenshots/settings-ui-light.PNG" alt="App Settings tab, light mode" width="400"/></td>
+    <td><img src="website/public/app_screenshots/settings-ui-dark.PNG" alt="App Settings tab, dark mode" width="400"/></td>
+  </tr>
+  <tr>
+    <td><img src="website/public/app_screenshots/settings-ui-light-battery-status.PNG" alt="Battery Health tab, light mode" width="400"/></td>
+    <td><img src="website/public/app_screenshots/settings-ui-dark-battery-status.PNG" alt="Battery Health tab, dark mode" width="400"/></td>
+  </tr>
+  <tr>
+    <td><img src="website/public/app_screenshots/settings-ui-light-app-status.PNG" alt="App Status tab, light mode" width="400"/></td>
+    <td><img src="website/public/app_screenshots/settings-ui-dark-app-status.PNG" alt="App Status tab, dark mode" width="400"/></td>
+  </tr>
+</table>
 
 ## 🛠️ Installation
 

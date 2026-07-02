@@ -9,23 +9,24 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 # FITNESS FOR A PARTICULAR PURPOSE.  See the LICENSE file for more details.
 
-import time
 import atexit
+import multiprocessing
+import time
+from multiprocessing.sharedctypes import SynchronizedBase
 from pathlib import Path
 from typing import Literal
+
 from batteryinfo import Battery, TimeFormat
-from desktop_notifier import Urgency, Button
+from desktop_notifier import Button, Urgency
+
+from battery_reminder.src import powerplan
 from battery_reminder.src.app_config_manager import (
+    AppConfig,
     get_app_name,
     load_config,
-    AppConfig,
 )
 from battery_reminder.src.logger_config import logger
 from battery_reminder.src.utils import SingletonMeta
-from battery_reminder.src import powerplan
-
-import multiprocessing
-from multiprocessing.sharedctypes import SynchronizedBase
 
 # Initialize logger
 NOTIFICATION_TIMEOUT = -1

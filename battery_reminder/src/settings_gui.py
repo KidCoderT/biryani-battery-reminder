@@ -244,12 +244,24 @@ class AppSettingUI:
         self.separator = ttk.Separator(self.main_frame, orient="horizontal")
         self.separator.pack(fill="x", pady=20)
 
-    def _create_notebook(self) -> None:
-        """Create the notebook widget with tabs."""
+    def _configure_notebook_style(self) -> None:
+        """(Re)apply notebook tab styling.
+
+        ttk style options are per-theme, so this must be re-run after every
+        theme_use() call or the custom tab styling reverts to that theme's
+        defaults.
+        """
         self.style.configure("custom.TNotebook", tabposition="n")
         self.style.configure(
-            "custom.TNotebook.Tab", padding=(0, 25), font=("Arial", 10)
+            "custom.TNotebook.Tab",
+            padding=(0, 25),
+            font=("Arial", 10),
+            anchor=CENTER,
         )
+
+    def _create_notebook(self) -> None:
+        """Create the notebook widget with tabs."""
+        self._configure_notebook_style()
 
         self.notebook = ttk.Notebook(self.main_frame, style="custom.TNotebook")
         size = 20
@@ -288,6 +300,7 @@ class AppSettingUI:
         self.master.style.theme_use(
             self.LIGHT_THEME if self.theme == "light" else self.DARK_THEME
         )
+        self._configure_notebook_style()
 
         # Update button styles
         style = "CustomLight.TButton" if self.theme == "light" else "CustomDark.TButton"
@@ -2170,7 +2183,6 @@ class AppSettingUI:
             content_frame,
             text="coder52057@gmail.com",
             font=("Arial", 10, "bold"),
-            foreground="#222222",
             anchor="center",
             justify="center",
             wraplength=500,

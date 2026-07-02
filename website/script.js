@@ -41,10 +41,98 @@
   });
 })();
 
-// ---------- Scroll-reveal for cards and sections ----------
+// ---------- Settings UI carousel ----------
+(function () {
+  const dots = document.querySelectorAll(".duo-dot");
+  const arrows = document.querySelectorAll(".duo-arrow");
+  const slides = document.querySelectorAll(".duo-slide");
+  if (!dots.length || !slides.length) return;
+
+  const totalSlides = slides.length;
+  let currentSlide = 0;
+
+  function goToSlide(index) {
+    currentSlide = (index + totalSlides) % totalSlides;
+
+    dots.forEach((d, i) => {
+      d.classList.toggle("active", i === currentSlide);
+    });
+    slides.forEach((s, i) => {
+      s.classList.toggle("active", i === currentSlide);
+    });
+  }
+
+  // Dots
+  dots.forEach((dot) => {
+    dot.addEventListener("click", () => {
+      goToSlide(parseInt(dot.dataset.slide, 10));
+    });
+  });
+
+  // Arrows
+  arrows.forEach((arrow) => {
+    arrow.addEventListener("click", () => {
+      const isLeft = arrow.classList.contains("duo-arrow-left");
+      goToSlide(currentSlide + (isLeft ? -1 : 1));
+    });
+  });
+
+  // Click on left/right side of carousel
+  const track = document.querySelector(".duo-carousel-track");
+  if (track) {
+    track.addEventListener("click", (e) => {
+      if (e.target.closest(".duo-arrow")) return;
+      const rect = track.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const isRight = x > rect.width / 2;
+      goToSlide(currentSlide + (isRight ? 1 : -1));
+    });
+  }
+
+  // Swipe gestures for mobile
+  let touchStartX = 0;
+  let touchEndX = 0;
+  const carousel = document.querySelector(".duo-carousel");
+  if (carousel) {
+    carousel.addEventListener(
+      "touchstart",
+      (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+      },
+      { passive: true },
+    );
+    carousel.addEventListener(
+      "touchend",
+      (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        const diff = touchStartX - touchEndX;
+        if (Math.abs(diff) > 50) {
+          goToSlide(currentSlide + (diff > 0 ? 1 : -1));
+        }
+      },
+      { passive: true },
+    );
+  }
+
+  // Show/hide arrows based on carousel visibility in viewport
+  const carouselEl = document.querySelector(".duo-carousel");
+  if (carouselEl && "IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          entry.target.classList.toggle("in-view", entry.isIntersecting);
+        });
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(carouselEl);
+  }
+})();
+
+// ---------- Scroll-reveal for cards and sections
 (function () {
   const targets = document.querySelectorAll(
-    ".feature-card, .duo-card, .step, .roadmap li, .privacy-list li, .duo-hero, .section-title, .section-sub, .section-eyebrow",
+    ".feature-card, .duo-card, .step, .roadmap li, .privacy-list li, .duo-hero, .section-title, .section-sub, .section-eyebrow, .toast-marquee, .ui-showcase",
   );
 
   if (!("IntersectionObserver" in window)) return;
