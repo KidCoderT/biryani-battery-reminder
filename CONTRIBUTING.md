@@ -6,52 +6,52 @@ Thank you for your interest in contributing to Biryani Battery Reminder! This do
 
 ### Prerequisites
 
--   **Python 3.13** (required as per project configuration) Although it should work with any version above 3.11
--   **uv** for dependency management (`pip install uv` or see [uv docs](https://docs.astral.sh/uv/))
--   **Windows** (currently the only supported platform)
--   **Git** for version control
+- **Python 3.13** (required as per project configuration) Although it should work with any version above 3.11
+- **uv** for dependency management (`pip install uv` or see [uv docs](https://docs.astral.sh/uv/))
+- **Windows** (currently the only supported platform)
+- **Git** for version control
 
 ### Development Setup
 
 1. **Fork and Clone the Repository**
 
-    ```bash
-    git clone https://github.com/YOUR_USERNAME/battery-reminder.git
-    cd battery-reminder
-    ```
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/battery-reminder.git
+   cd battery-reminder
+   ```
 
 2. **Install Dependencies**
 
-    ```bash
-    uv sync --extra windows
-    ```
+   ```bash
+   uv sync --extra windows
+   ```
 
 3. **Run the Application**
 
-    ```bash
-    uv run python -m battery_reminder
-    ```
+   ```bash
+   uv run python -m battery_reminder
+   ```
 
 4. **Build the Executable** (for testing)
-    ```bash
-    uv run python build.py build
-    ```
+   ```bash
+   uv run python build.py build
+   ```
 
 ## 🛠️ Development Guidelines
 
 ### Code Style
 
--   **Formatting**: Use `ruff` for code formatting and linting
+- **Formatting**: Use `ruff` for code formatting and linting
 
-    ```bash
-    uv run ruff format .
-    uv run ruff check .
-    ```
+  ```bash
+  uv run ruff format .
+  uv run ruff check .
+  ```
 
--   **Type Checking**: Use `pyright` for type checking
-    ```bash
-    uv run pyright
-    ```
+- **Type Checking**: Use `pyright` for type checking
+  ```bash
+  uv run pyright
+  ```
 
 ### Project Structure
 
@@ -65,12 +65,12 @@ battery_reminder/
 
 ### Key Dependencies
 
--   `desktop-notifier`: For system notifications
--   `batteryinfo`: For battery information
--   `pystray`: For system tray functionality
--   `ttkbootstrap`: For modern UI components
--   `cx-freeze`: For building executables
--   `nava`: For notifications sounds
+- `desktop-notifier`: For system notifications
+- `batteryinfo`: For battery information
+- `pystray`: For system tray functionality
+- `ttkbootstrap`: For modern UI components
+- `cx-freeze`: For building executables
+- `nava`: For notifications sounds
 
 ## 🐛 Reporting Bugs
 
@@ -102,17 +102,17 @@ git checkout -b fix/your-bug-fix
 
 ### 2. Make Your Changes
 
--   Follow the coding style guidelines
--   Add tests if applicable
--   Update documentation if needed
--   Test on Windows
+- Follow the coding style guidelines
+- Add tests if applicable
+- Update documentation if needed
+- Test on Windows
 
 ### 3. Test Your Changes
 
--   Test the source code version
--   Test the executable build
--   Test battery notifications at different levels
--   Test system tray functionality
+- Test the source code version
+- Test the executable build
+- Test battery notifications at different levels
+- Test system tray functionality
 
 ### 4. Commit Your Changes
 
@@ -123,11 +123,11 @@ git commit -m "feat: add custom battery threshold settings"
 
 Use conventional commit messages:
 
--   `feat:` for new features
--   `fix:` for bug fixes
--   `docs:` for documentation changes
--   `style:` for formatting changes
--   `refactor:` for code refactoring
+- `feat:` for new features
+- `fix:` for bug fixes
+- `docs:` for documentation changes
+- `style:` for formatting changes
+- `refactor:` for code refactoring
 
 ### 5. Push and Create a Pull Request
 
@@ -139,23 +139,23 @@ Then create a pull request using the provided template.
 
 ## 📋 Pull Request Guidelines
 
--   Use the provided pull request template
--   Ensure all checklist items are completed
--   Provide clear testing instructions
--   Include screenshots for UI changes
--   Link related issues if applicable
+- Use the provided pull request template
+- Ensure all checklist items are completed
+- Provide clear testing instructions
+- Include screenshots for UI changes
+- Link related issues if applicable
 
 ## 🧪 Testing
 
 ### Manual Testing Checklist
 
--   [ ] App starts without errors
--   [ ] System tray icon appears
--   [ ] Notifications work at low battery levels
--   [ ] Notifications work at full battery
--   [ ] Settings can be accessed and modified
--   [ ] App can be closed properly
--   [ ] Executable builds and runs correctly
+- [ ] App starts without errors
+- [ ] System tray icon appears
+- [ ] Notifications work at low battery levels
+- [ ] Notifications work at full battery
+- [ ] Settings can be accessed and modified
+- [ ] App can be closed properly
+- [ ] Executable builds and runs correctly
 
 ### Automated Testing
 
@@ -163,10 +163,10 @@ Then create a pull request using the provided template.
 
 ## 📚 Documentation
 
--   Update docstrings for new functions
--   Update README.md if needed
--   Add comments for complex logic
--   Document any new configuration options
+- Update docstrings for new functions
+- Update README.md if needed
+- Add comments for complex logic
+- Document any new configuration options
 
 ## 🤝 Code Review Process
 
@@ -179,16 +179,16 @@ Then create a pull request using the provided template.
 
 Biryani Battery Reminder aims to:
 
--   Provide fun, engaging battery notifications
--   Be lightweight and non-intrusive
--   Work reliably on Windows
--   Have a simple, user-friendly interface
+- Provide fun, engaging battery notifications
+- Be lightweight and non-intrusive
+- Work reliably on Windows
+- Have a simple, user-friendly interface
 
 ## 📞 Getting Help
 
--   Open an issue for bugs or feature requests
--   Check existing issues and discussions
--   Be respectful and constructive in communications
+- Open an issue for bugs or feature requests
+- Check existing issues and discussions
+- Be respectful and constructive in communications
 
 ## 📄 License
 

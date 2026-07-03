@@ -2,12 +2,11 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Biryani Battery Reminder"
-#define InstallerName "Battery_Reminder_Installer (V2)"
-#define MyAppVersion "2.0.0"
+#define InstallerName "Battery_Reminder_Installer"
+#define MyAppVersion "1.0.0"
 #define MyAppPublisher "Tejas, Inc"
-#define MyAppURL "https://www.example.com/"
+#define MyAppURL "https://biryani-battery-reminder.vercel.app/"
 #define MyAppExeName "biryani-battery-reminder.exe"
-#define MutexName "BiryaniBatteryReminder_MUTEX"
 
 [Setup]
 AppId={{A0B8AD10-A4A3-41C5-8670-225C0FA603C3}
@@ -30,6 +29,16 @@ OutputBaseFilename={#InstallerName}
 SetupIconFile=.\assets\downloader-icon.ico
 SolidCompression=yes
 WizardStyle=modern
+
+; --- ADDED METADATA TO PREVENT AV FLAGS ---
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription=Installer for {#MyAppName}
+VersionInfoVersion={#MyAppVersion}
+
+; --- SAFE, NATIVE MUTEX CHECKING ---
+; This replaces the risky 'OpenMutexA' Pascal code entirely. 
+; Inno Setup handles this natively without triggering security engines.
+AppMutex=BiryaniBatteryReminder_MUTEX
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -55,156 +64,13 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-; Don't perform mass delete. All deletion is handled by DeinitializeUninstall
-; Type: filesandordirs; Name: "{app}\*"
-; Type: dirifempty; Name: "{app}"
-
-[Code]
-// Windows API declarations
-function OpenMutex(dwDesiredAccess: DWORD; bInheritHandle: BOOL; lpName: PAnsiChar): THandle;
-external 'OpenMutexA@kernel32.dll stdcall';
-
-function CloseHandle(hObject: THandle): BOOL;
-external 'CloseHandle@kernel32.dll stdcall';
-
-// Constants
-const
-  MUTEX_ALL_ACCESS = $1F0001;
-
-// Check if the app is running using the same mutex as the Python app
-function IsAppRunningMutex(): Boolean;
-var
-  MutexHandle: THandle;
-begin
-  Result := False;
-  try
-    // Try to open the existing mutex (same name as Python app uses)
-    MutexHandle := OpenMutex(MUTEX_ALL_ACCESS, False, '{#MutexName}');
-    if MutexHandle <> 0 then
-    begin
-      // Mutex exists, app is running
-      CloseHandle(MutexHandle);
-      Result := True;
-    end
-    else
-    begin
-      // Mutex doesn't exist, app is not running
-      Result := False;
-    end;
-  except
-    // If any error occurs, assume app is not running
-    Result := False;
-  end;
-end;
-
-// On uninstall, block if app is running
-function InitializeUninstall(): Boolean;
-begin
-  if IsAppRunningMutex() then
-  begin
-    MsgBox('{#MyAppName} is currently running. Please close it before uninstalling.', mbError, MB_OK);
-    Result := False;
-  end
-  else
-    Result := True;
-end;
-
-// Check if a file has .json extension
-function IsJsonFile(const FileName: String): Boolean;
-var
-  FileExt: String;
-begin
-  FileExt := LowerCase(ExtractFileExt(FileName));
-  Result := (FileExt = '.json');
-end;
-
-// Delete all files/folders except json files - improved version
-procedure DeleteAppExceptJsons(const Dir: String);
-var
-  FindRec: TFindRec;
-  FilePath: String;
-  FilesToDelete: TArrayOfString;
-  DirsToDelete: TArrayOfString;
-  I: Integer;
-begin
-  // First pass: collect files to delete and recurse into subdirectories
-  if FindFirst(Dir + '\*', FindRec) then
-  try
-    repeat
-      if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
-      begin
-        FilePath := Dir + '\' + FindRec.Name;
-        
-        if FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0 then
-        begin
-          // Directory: recurse first, then mark for deletion
-          DeleteAppExceptJsons(FilePath);
-          SetArrayLength(DirsToDelete, GetArrayLength(DirsToDelete) + 1);
-          DirsToDelete[GetArrayLength(DirsToDelete) - 1] := FilePath;
-        end
-        else
-        begin
-          // File: only mark for deletion if NOT .json extension
-          if not IsJsonFile(FindRec.Name) then
-          begin
-            SetArrayLength(FilesToDelete, GetArrayLength(FilesToDelete) + 1);
-            FilesToDelete[GetArrayLength(FilesToDelete) - 1] := FilePath;
-          end;
-        end;
-      end;
-    until not FindNext(FindRec);
-  finally
-    FindClose(FindRec);
-  end;
-
-  // Second pass: delete collected files
-  for I := 0 to GetArrayLength(FilesToDelete) - 1 do
-  begin
-    try
-      DeleteFile(FilesToDelete[I]);
-    except
-      // Log or ignore deletion errors for individual files
-    end;
-  end;
-
-  // Third pass: delete empty directories
-  for I := 0 to GetArrayLength(DirsToDelete) - 1 do
-  begin
-    try
-      RemoveDir(DirsToDelete[I]);
-    except
-      // Ignore errors - directory might not be empty if it contains JSON files
-    end;
-  end;
-end;
-
-procedure DeinitializeUninstall();
-var
-  AppDir: String;
-begin
-  // On uninstall, cleanup all files and folders except .json files
-  AppDir := ExpandConstant('{app}');
-  try
-    DeleteAppExceptJsons(AppDir);
-    // Try to remove the main app directory (will fail if JSON files remain, which is expected)
-    RemoveDir(AppDir);
-  except
-    // Ignore errors during cleanup
-  end;
-end;
-
-procedure CurStepChanged(CurStep: TSetupStep);
-var
-  AppDir: String;
-begin
-  // Before installing files, clear the app folder except JSON files
-  if CurStep = ssInstall then
-  begin
-    AppDir := ExpandConstant('{app}');
-    try
-      DeleteAppExceptJsons(AppDir);
-    except
-      // Ignore errors during pre-install cleanup
-    end;
-  end;
-end;
+; --- NATIVE CLEANUP ---
+; Instead of complex custom Pascal script deletion code, we tell Inno Setup 
+; explicitly what files it is allowed to delete. 
+; Because we do NOT list *.json here, your user's JSON configuration files will naturally be left untouched!
+Type: files; Name: "{app}\{#MyAppExeName}"
+Type: files; Name: "{app}\*.dll"
+Type: files; Name: "{app}\*.txt"
+Type: filesandordirs; Name: "{app}\assets"
+Type: filesandordirs; Name: "{app}\lib"
+Type: filesandordirs; Name: "{app}\share"
