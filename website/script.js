@@ -153,3 +153,6 @@
 
   targets.forEach((el) => observer.observe(el));
 })();
+
+import { inject } from "@vercel/analytics";
+inject();
